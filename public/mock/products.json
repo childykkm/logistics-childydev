@@ -1,0 +1,56 @@
+[
+    {
+        "id": "P00000HR",
+        "name": "와이드 핏 데님 팬츠",
+        "code": "HIRO-DENIM-001",
+        "option1": "블랙 / M",
+        "stock": 45,
+        "price": 32000,
+        "brand": "HIRO"
+    },
+    {
+        "id": "P00000GK",
+        "name": "기모 후드 집업",
+        "code": "GLGK-HOOD-002",
+        "option1": "그레이 / L",
+        "stock": 12,
+        "price": 45000,
+        "brand": "GLGK"
+    },
+    {
+        "id": "P00000SA",
+        "name": "오버핏 스트라이프 셔츠",
+        "code": "SANN-SHIRT-003",
+        "option1": "블루 / XL",
+        "stock": 4,
+        "price": 38000,
+        "brand": "SANN"
+    },
+    {
+        "id": "P00000OUT",
+        "name": "[품절예정] 베이직 면바지",
+        "code": "BAS-PANTS-004",
+        "option1": "베이지 / S",
+        "stock": 0,
+        "price": 29000,
+        "brand": "HIRO"
+    },
+    {
+        "id": "P00000LOW",
+        "name": "로고 반팔 티셔츠",
+        "code": "LOGO-TS-005",
+        "option1": "화이트 / L",
+        "stock": 2,
+        "price": 19000,
+        "brand": "GLGK"
+    },
+    {
+        "id": "P00000JK",
+        "name": "울 블렌드 자켓",
+        "code": "JKT-006",
+        "option1": "차콜 / 100",
+        "stock": 15,
+        "price": 128000,
+        "brand": "SANN"
+    }
+]

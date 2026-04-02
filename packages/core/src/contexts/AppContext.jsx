@@ -1,0 +1,399 @@
+import React, { createContext, useState, useEffect, useCallback } from 'react';
+import { seedingService } from '@core/services/seedingService';
+import client from '@core/api/client';
+import { authService } from '@core/services/authService';
+import { brandService, departmentService } from '@core/services/brandService';
+import { userService } from '@core/services/userService';
+import { STATUS_MAP } from '@core/constants/status';
+
+export const AppContext = createContext();
+
+export const AppProvider = ({ children }) => {
+    // Global Status
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Data State
+    const [seedings, setSeedings] = useState([]);
+    const [accounts, setAccounts] = useState([]);
+    const [brands, setBrands] = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [isAuthChecking, setIsAuthChecking] = useState(true);
+    const [editAccountTarget, setEditAccountTarget] = useState(null);
+    const [onEditAccountSaved, setOnEditAccountSaved] = useState(null);
+
+    const openEditAccount = (user, onSaved) => {
+        setEditAccountTarget(user);
+        setOnEditAccountSaved(() => onSaved ?? null);
+    };
+    const closeEditAccount = () => {
+        setEditAccountTarget(null);
+        setOnEditAccountSaved(null);
+    };
+
+    // Initial Auth Verification
+    useEffect(() => {
+        const verifySession = async () => {
+            try {
+                // localStorage fallback if token API isn't fully ready
+                const savedUser = localStorage.getItem('currentUser');
+                
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    if (savedUser) setCurrentUser(JSON.parse(savedUser));
+                    return;
+                }
+                
+                const res = await authService.verifyToken();
+                const user = Array.isArray(res) ? null : (res?.user || res?.data || res);
+                if (user && (user.id || user.userId)) {
+                    setCurrentUser(user);
+                } else if (savedUser) {
+                    setCurrentUser(JSON.parse(savedUser));
+                }
+            } catch (err) {
+                console.warn('Authentication verification failed.', err);
+            } finally {
+                setIsAuthChecking(false);
+            }
+        };
+        verifySession();
+    }, []);
+
+    // Load App Data when currentUser is verified
+    const fetchData = useCallback(async (params = {}) => {
+        if (!currentUser) return;
+
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            // 1. Fetch Brands & Departments
+            let brandRes;
+            const isNotAdmin = currentUser.role !== 'admin' && currentUser.role !== '통합 어드민';
+            
+            // 일반 사용자일 경우 자신의 브랜드 목록만, 어드민이면 전체 브랜드 조회
+            // permissionService.getMyBrands() 로 권한있는 브랜드만 가져오게 백엔드 API 명세 반영
+            // 백엔드 오류(권한, 테이블 부재)를 대비하여 catch 구문 추가
+            const brandPromise = isNotAdmin 
+                ? import('@core/services/brandService').then(m => m.permissionService.getMyBrands()).catch(() => brandService.getBrands().catch(() => []))
+                : brandService.getBrands().catch(() => []);
+            
+            const deptPromise = departmentService.getDepartments().catch(() => []);
+
+            const [fetchedBrands, deptRes] = await Promise.all([brandPromise, deptPromise]);
+            
+            brandRes = fetchedBrands;
+            
+            let brandList = Array.isArray(brandRes) ? brandRes : (brandRes?.data || []);
+            const deptList = Array.isArray(deptRes) ? deptRes : (deptRes?.data || []);
+            
+            // 서버 응답이 전체를 주는 구조의 Fallback. (my_brands가 혹시 실패했을 때 대비 프론트 필터링)
+            if (isNotAdmin) {
+                const userBrands = Array.isArray(currentUser.brands) ? currentUser.brands : [];
+                if (userBrands.length > 0 && !userBrands.includes('전체') && brandList.length > userBrands.length) {
+                    brandList = brandList.filter(b => {
+                        const bName = typeof b === 'object' ? (b.name || b.brand_name) : b;
+                        return userBrands.includes(bName);
+                    });
+                }
+            }
+            
+            setBrands(brandList);
+            setDepartments(deptList);
+
+            const seedingRes = await seedingService.getSeedings(params).catch(() => []);
+            const rawList = Array.isArray(seedingRes) ? seedingRes : (seedingRes?.data || []);
+            const pagination = seedingRes?.pagination ?? {};
+            const serverTotal = pagination.total ?? rawList.length;
+            const serverTotalPages = pagination.total_pages ?? 1;
+            const serverHasNext = (pagination.page ?? 1) < serverTotalPages;
+
+            // 서버 영문 status → 한글 변환
+            const toKorStatus = (s) => STATUS_MAP[s] ?? s;
+
+            const loadedSeedings = [];
+            rawList.forEach((req) => {
+                // item이 배열 또는 단일 객체로 내려올 수 있음
+                const rawItem = req.item;
+                const itemList = Array.isArray(rawItem) ? rawItem : (rawItem ? [rawItem] : []);
+
+                if (itemList.length === 0) {
+                    loadedSeedings.push({
+                        id: req.request_no,
+                        _dbId: req.id,
+                        brand: req.brand_name ?? '',
+                        brand_id: req.brand_id,
+                        date: req.created_at?.slice(0, 10) ?? '',
+                        orderName: req.requester_name ?? '',
+                        memo: req.notes ?? '',
+                        status: toKorStatus(req.status),
+                        hasStockIssue: false,
+                        itemCode: '', itemName: '', option1: '', option2: '', option3: '',
+                        qty: '', price: '', paymentPrice: '', expectedPrice: '',
+                        orderPhone: '', recipientName: '', recipientPhone: '',
+                        zipcode: '', address: '', orderNo: '', sellicCode: '', sellicOption: '',
+                    });
+                } else {
+                    itemList.forEach(item => {
+                        loadedSeedings.push({
+                            id: req.request_no,
+                            _itemId: item.id,
+                            _dbId: req.id,
+                            brand: req.brand_name ?? '',
+                            brand_id: req.brand_id,
+                            status: toKorStatus(item.status ?? req.status),
+                            hasStockIssue: item.has_stock_issue ?? (item.status === 'reviewing') ?? false,
+                            date: item.order_date ?? req.created_at?.slice(0, 10) ?? '',
+                            itemCode: item.company_product_code ?? '',
+                            itemName: item.mall_product_name ?? item.company_product_code ?? '',
+                            option1: item.option_name ?? '',
+                            option2: item.option_name2 ?? '',
+                            option3: item.option_name3 ?? '',
+                            qty: item.order_qty ?? '',
+                            price: item.mall_sale_price ?? '',
+                            paymentPrice: item.mall_payment_amount ?? '',
+                            expectedPrice: item.settlement_amount ?? '',
+                            orderName: item.orderer_name ?? req.requester_name ?? '',
+                            orderPhone: item.orderer_phone ?? '',
+                            recipientName: item.recipient_name ?? '',
+                            recipientPhone: item.recipient_phone ?? '',
+                            zipcode: item.recipient_zipcode ?? '',
+                            address: item.recipient_address ?? '',
+                            orderNo: item.mall_order_no ?? '',
+                            memo: item.notes ?? req.notes ?? '',
+                            sellicCode: item.sellic_product_code ?? '',
+                            sellicOption: item.sellic_option_code ?? '',
+                        });
+                    });
+                }
+            });
+            setSeedings(loadedSeedings.sort((a, b) => (b._dbId ?? 0) - (a._dbId ?? 0)));
+
+            // 3. Fetch Accounts (if Admin)
+            try {
+                if (currentUser.role === 'admin' || currentUser.role === '통합 어드민') {
+                    const userList = await userService.getUsers();
+                    const list = Array.isArray(userList) ? userList : (userList?.data || userList?.users || []);
+                    
+                    // 각 사용자의 브랜드 권한 병렬 조회 (AdminSettings의 로직을 전역으로 이동)
+                    const listWithBrands = await Promise.all(
+                        list.map(async (user) => {
+                            try {
+                                const pRes = await import('@core/services/brandService').then(m => m.permissionService.getUserPermissions(user.id));
+                                const perms = Array.isArray(pRes) ? pRes : (pRes?.data || []);
+                                const allowedBrands = perms
+                                    .filter(b => b.has_permission === 1 || b.has_permission === true)
+                                    .map(b => ({ id: b.id, name: b.name }));
+                                return { ...user, brands: allowedBrands };
+                            } catch {
+                                return { ...user, brands: [] };
+                            }
+                        })
+                    );
+                    setAccounts(listWithBrands);
+                }
+            } catch (e) {
+                console.warn('사용자 목록을 불러올 수 없습니다.', e);
+            }
+
+            return { total: serverTotal, hasNext: serverHasNext, totalPages: serverTotalPages };
+
+        } catch (err) {
+            setError('데이터를 불러오는 중 오류가 발생했습니다.');
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // LocalStorage Setup for UI defaults
+    useEffect(() => {
+
+    }, []);
+
+    // Seeding Functions (API points ready)
+    const addSeeding = async (newSeedingData) => {
+        try {
+            const entries = Array.isArray(newSeedingData) ? newSeedingData : [newSeedingData];
+            const matchedBrand = brands.find(b => {
+                const bName = typeof b === 'object' ? (b.name || b.brand_name) : b;
+                return bName === entries[0]?.brand;
+            });
+            const brand_id = matchedBrand?.id || matchedBrand?.brand_id;
+
+            await Promise.all(entries.map(entry =>
+                seedingService.createSeeding({ ...entry, brand_id })
+            ));
+
+            // 등록 후 서버에서 다시 fetch해서 정확한 데이터로 갱신
+            await fetchData();
+        } catch (err) {
+            setError('시딩 등록 실패');
+            throw err;
+        }
+    };
+
+    const updateSeeding = async (id, updatedData) => {
+        try {
+            const keys = Object.keys(updatedData);
+            const itemId = updatedData._itemId ?? seedings.find(s => s.id === id)?._itemId;
+            const dbId = updatedData._dbId ?? seedings.find(s => s.id === id)?._dbId;
+            if (keys.length === 1 && keys[0] === 'status') {
+                await seedingService.updateSeedingStatus(dbId, updatedData.status);
+            } else {
+                await seedingService.updateSeeding(itemId ?? id, updatedData);
+            }
+            await fetchData();
+        } catch (err) {
+            setError('시딩 수정 실패');
+            throw err;
+        }
+    };
+
+    const deleteSeeding = async (id) => {
+        try {
+            await seedingService.deleteSeeding(id);
+            await fetchData();
+        } catch (err) {
+            setError('시딩 삭제 실패');
+        }
+    };
+
+    // Account & Settings Functions
+    const addAccount = async (account) => {
+        try {
+            await userService.createUser(account);
+            const userList = await userService.getUsers();
+            setAccounts(userList || []);
+        } catch (err) {
+            setError('계정 생성 실패');
+        }
+    };
+    const updateAccount = async (id, updatedData) => {
+        try {
+            await userService.updateUser(id, updatedData);
+            const userList = await userService.getUsers();
+            setAccounts(userList || []);
+            if (currentUser.id === id) setCurrentUser(prev => ({ ...prev, ...updatedData }));
+        } catch (err) {
+            setError('계정 수정 실패');
+        }
+    };
+    const deleteAccount = async (id) => {
+        try {
+            await userService.deleteUser(id);
+            setAccounts(prev => prev.filter(a => a.id !== id));
+        } catch (err) {
+            setError('계정 삭제 실패');
+        }
+    };
+
+    const addBrand = async (b) => {
+        try {
+            await brandService.createBrand(typeof b === 'string' ? { name: b } : b);
+            const res = await brandService.getBrands();
+            setBrands(Array.isArray(res) ? res : (res?.data || []));
+        } catch (err) {
+            setError('브랜드 생성 실패');
+        }
+    };
+    const removeBrand = async (b) => {
+        try {
+            const bId = typeof b === 'object' ? b.id : brands.find(br => (br.name || br.brand_name) === b)?.id;
+            if (bId) await brandService.deleteBrand(bId);
+            const res = await brandService.getBrands();
+            setBrands(Array.isArray(res) ? res : (res?.data || []));
+        } catch (err) {
+            setError('브랜드 삭제 실패');
+        }
+    };
+
+
+    // Auth Integration
+    const login = async (userId, password) => {
+        setIsLoading(true);
+        try {
+            const result = await authService.login(userId, password);
+            if (result.success || result.userId || result.token) { // fallback handle generic API responses
+                if (result.token) localStorage.setItem('token', result.token);
+                
+                let userObj = result.user || result.data;
+                
+                // 유저 정보가 응답에 없고 토큰만 왔다면, 곧바로 verifyToken으로 사용자 정보 가져오기
+                if (!userObj && result.token) {
+                    try {
+                        const verifyRes = await authService.verifyToken();
+                        userObj = Array.isArray(verifyRes) ? null : (verifyRes?.user || verifyRes?.data || verifyRes);
+                    } catch (e) {
+                        console.error('로그인 직후 사용자 정보 가져오기 실패', e);
+                    }
+                }
+                
+                userObj = userObj || result; // 최후의 fallback
+                
+                setCurrentUser(userObj);
+                localStorage.setItem('currentUser', JSON.stringify(userObj));
+                return { success: true };
+            }
+            return { success: false, message: result.message };
+        } catch (err) {
+            setError('로그인 중 오류가 발생했습니다.');
+            return { success: false };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const register = async (userData) => {
+        setIsLoading(true);
+        try {
+            const result = await authService.register(userData);
+            return result;
+        } catch (err) {
+            setError('회원가입 중 오류가 발생했습니다.');
+            return { success: false };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const clearError = () => setError(null);
+
+    const logout = () => {
+        setCurrentUser(null);
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
+    };
+
+    const value = React.useMemo(() => ({
+        isLoading, error, clearError, fetchData,
+        seedings, addSeeding, updateSeeding, deleteSeeding,
+        accounts, addAccount, updateAccount, deleteAccount,
+        globalSearch, setGlobalSearch,
+        brands, addBrand, removeBrand,
+        currentUser, setCurrentUser,
+        departments, login, logout, register,
+        editAccountTarget, openEditAccount, closeEditAccount, onEditAccountSaved,
+    }), [
+        isLoading, error, fetchData, seedings, accounts, 
+        globalSearch, brands, currentUser, departments, 
+        editAccountTarget, onEditAccountSaved
+    ]);
+
+    if (isAuthChecking) {
+        return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>인증 정보를 확인 중입니다...</div>;
+    }
+
+    return (
+        <AppContext.Provider value={value}>
+            {children}
+        </AppContext.Provider>
+    );
+};
