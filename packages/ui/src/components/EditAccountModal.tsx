@@ -21,6 +21,7 @@ const EditAccountModal: FC<EditAccountModalProps> = ({ user, brands, onClose, on
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [originalUser, setOriginalUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [password, setPassword] = useState('');
 
     useEffect(() => {
         const load = async () => {
@@ -64,11 +65,12 @@ const EditAccountModal: FC<EditAccountModalProps> = ({ user, brands, onClose, on
                  currentUser.email !== originalUser.email ||
                  currentUser.role !== originalUser.role);
 
-            if (hasInfoChanged) {
+            if (hasInfoChanged || password) {
                 await userService.updateUser(String(currentUser.id), {
                     name: currentUser.name,
                     email: currentUser.email,
                     role: currentUser.role,
+                    ...(password ? { password } : {}),
                 });
                 if (loggedInUser?.id === currentUser.id) {
                     try {
@@ -118,6 +120,10 @@ const EditAccountModal: FC<EditAccountModalProps> = ({ user, brands, onClose, on
                         <div className="form-group" style={{ marginBottom: '12px' }}>
                             <label className="form-label">이메일</label>
                             <input type="email" className="form-input" value={currentUser.email || ''} onChange={e => setCurrentUser({ ...currentUser, email: e.target.value })} />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: '12px' }}>
+                            <label className="form-label">비밀번호 (변경 시에만 입력)</label>
+                            <input type="password" className="form-input" value={password} placeholder="새 비밀번호" onChange={e => setPassword(e.target.value)} />
                         </div>
                         <div className="form-group" style={{ marginBottom: '12px' }}>
                             <label className="form-label">역할</label>

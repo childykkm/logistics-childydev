@@ -49,18 +49,19 @@ const InventoryCheck: FC = () => {
     const handleApprove = async (id: string) => {
         const dbId = seedings.find(s => s.id === id)?._dbId;
         if (!dbId) return alert('재고 연동을 위한 데이터 정보가 부족합니다.');
-
+        if (!window.confirm('재고를 자동 차감합니다.\n승인하시겠습니까?')) return;
         try {
             setProcessingId(id);
             await approveInventory({
                 requestId: id,
                 dbId: String(dbId),
-                updateSeeding,
+                fetchData,
                 S_APPROVED
             });
+            alert('재고 차감이 완료되었습니다.');
         } catch (err) {
             console.error('[승인 오류]', err);
-            alert('승인 처리 중 오류가 발생했습니다. 콘솔 창의 상세 로그를 확인해주세요.');
+            alert('승인 처리 중 오류가 발생했습니다.');
         } finally {
             setProcessingId(null);
         }

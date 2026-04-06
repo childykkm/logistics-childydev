@@ -32,10 +32,23 @@ const SeedingRequest: FC = () => {
     const handleExcelQtyChange = (idx: number, newQty: string) => {
         if (!excelPreview) return;
         const updated = [...excelPreview];
-        const qtyVal = Number(newQty) || 0;
-        updated[idx].qty = qtyVal;
-        if (typeof updated[idx].stock === 'number') {
-            updated[idx].expectedStock = updated[idx].stock - qtyVal;
+        updated[idx].qty = Number(newQty) || 0;
+
+        // 같은 itemCode 그룹의 첫 번째 row의 원본 재고를 기준으로 순서대로 누적 재계산
+        const itemCode = updated[idx].itemCode;
+        if (itemCode) {
+            let runningStock: number | null = null;
+            updated.forEach(row => {
+                if (row.itemCode !== itemCode || typeof row.stock !== 'number') return;
+                if (runningStock === null) {
+                    // 첫 번째 row는 원본 서버 재고 기준
+                    runningStock = row.originalStock ?? row.stock;
+                    row.originalStock = runningStock; // 원본값 보존
+                }
+                row.stock = runningStock as number;
+                row.expectedStock = (runningStock as number) - (Number(row.qty) || 0);
+                runningStock = row.expectedStock;
+            });
         }
         setExcelPreview(updated);
     };
