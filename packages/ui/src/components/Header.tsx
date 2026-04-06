@@ -1,44 +1,43 @@
-import { useContext, useState } from 'react';
-import { Bell, Search, Menu, X, User } from 'lucide-react';
+import React, { useState, FC } from 'react';
+import { Bell, Menu, X, User } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { AppContext } from '@core/contexts/AppContext';
-import { authService } from '@core/services/authService';
+import { useAppContext } from '@core/contexts/AppContext';
 import { userService } from '@core/services/userService';
 
-export default function Header({ toggleSidebar }) {
+interface HeaderProps {
+    toggleSidebar: () => void;
+}
+
+const Header: FC<HeaderProps> = ({ toggleSidebar }) => {
     const location = useLocation();
-    const { globalSearch, setGlobalSearch, currentUser, setCurrentUser, updateAccount, logout, openEditAccount } = useContext(AppContext);
+    const { currentUser, logout, openEditAccount } = useAppContext();
     const [isMyPageOpen, setIsMyPageOpen] = useState(false);
 
     const getPageTitle = () => {
-        switch (location.pathname) {
-            case '/':
-            case '/seeding': return '시딩 목록 / 현황';
-            case '/seeding/request': return '시딩 요청 등록';
-            case '/seeding/inventory': return '재고 보정 확인';
-            case '/seeding/shipment': return '시딩 발주 및 출고 관리';
-            case '/admin': return '계정 및 권한 관리';
-            case '/brands': return '브랜드 관리';
-            case '/settings': return '시스템 설정';
-            default:
-                if (location.pathname.startsWith('/seeding/detail')) return '시딩 상세/수정';
-                return '통합 물류 시스템 (OMS)';
-        }
+        const path = location.pathname;
+        if (path === '/' || path === '/seeding') return '시딩 목록 / 현황';
+        if (path === '/seeding/request') return '시딩 요청 등록';
+        if (path === '/seeding/inventory') return '재고 보정 확인';
+        if (path === '/seeding/shipment') return '시딩 발주 및 출고 관리';
+        if (path === '/admin') return '계정 및 권한 관리';
+        if (path === '/brands') return '브랜드 관리';
+        if (path === '/settings') return '시스템 설정';
+        if (path.startsWith('/seeding/detail')) return '시딩 상세/수정';
+        return '통합 물류 시스템 (OMS)';
     };
 
     const handleMyPageOpen = async () => {
         try {
+            if (!currentUser) return;
             const res = await userService.getUsers();
-            const list = Array.isArray(res) ? res : (res?.data || res?.users || []);
-            const me = list.find(u => u.id === currentUser?.id || u.id === currentUser?.user_id);
+            const list = Array.isArray(res) ? res : [];
+            const me = list.find(u => u.id === currentUser.id || (u as any).userId === currentUser.userId);
             if (me) openEditAccount(me);
             else openEditAccount(currentUser);
         } catch {
             openEditAccount(currentUser);
         }
     };
-
-    const handleSaveMyPage = () => {}; // 사용 안 함 - EditAccountModal로 대체됨
 
     return (
         <>
@@ -58,16 +57,6 @@ export default function Header({ toggleSidebar }) {
                 </div>
 
                 <div className="header-profile" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
-                {/* 알림 기능 - 백엔드 API 구현 전까지 hide */}
-                {false && (
-                    <div style={{ position: 'relative', cursor: 'pointer' }} className="desktop-profile-info">
-                        <Bell size={24} color="var(--text-muted)" />
-                        <span style={{
-                            position: 'absolute', top: '-2px', right: '-2px',
-                            background: 'var(--danger)', width: '8px', height: '8px', borderRadius: '50%'
-                        }}></span>
-                    </div>
-                )}
                     <div
                         className="avatar"
                         style={{ cursor: 'pointer' }}
@@ -86,20 +75,20 @@ export default function Header({ toggleSidebar }) {
                 </div>
 
                 <style>{`
-          @media (min-width: 769px) {
-            #mobile-menu-btn {
-              display: none !important;
-            }
-          }
-          @media (max-width: 768px) {
-            .desktop-search, .desktop-profile-info {
-              display: none !important;
-            }
-          }
-        `}</style>
+                  @media (min-width: 769px) {
+                    #mobile-menu-btn {
+                      display: none !important;
+                    }
+                  }
+                  @media (max-width: 768px) {
+                    .desktop-search, .desktop-profile-info {
+                      display: none !important;
+                    }
+                  }
+                `}</style>
             </header>
 
-            {/* 로그아웃 확인 모달 */}
+            {/* 마이페이지/로그아웃 모달 (필요시 구현) */}
             {isMyPageOpen && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: 'white', width: '100%', maxWidth: '320px', borderRadius: '12px', padding: '24px' }}>
@@ -110,7 +99,7 @@ export default function Header({ toggleSidebar }) {
                             </div>
                             <button onClick={() => setIsMyPageOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
                         </div>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '24px' }}>{currentUser?.email}</p>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '24px' }}>{(currentUser as any)?.email}</p>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <button className="btn" style={{ color: 'var(--danger)', background: '#FEE2E2', border: 'none', padding: '8px 16px' }} onClick={() => { setIsMyPageOpen(false); logout(); }}>
                                 로그아웃
@@ -124,4 +113,6 @@ export default function Header({ toggleSidebar }) {
             )}
         </>
     );
-}
+};
+
+export default Header;

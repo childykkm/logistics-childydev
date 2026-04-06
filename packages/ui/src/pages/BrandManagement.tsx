@@ -7,7 +7,8 @@ import { AppContext } from '@core/contexts/AppContext';
 const emptyForm = { name: '', mall_id: '', description: '' };
 
 export default function BrandManagement() {
-    const { brands, setBrands, fetchData } = useContext(AppContext);
+    const { brands, setBrands, fetchData, currentUser } = useContext(AppContext);
+    const isAdmin = currentUser?.role === 'admin';
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editTarget, setEditTarget] = useState(null); // null = 신규, object = 수정
@@ -172,7 +173,7 @@ export default function BrandManagement() {
                         브랜드별 Cafe24 쇼핑몰 아이디를 등록하고 OAuth 인증을 연결합니다.
                     </p>
                 </div>
-                <button className="btn btn-primary" onClick={openCreate} disabled={loading}>
+                <button className="btn btn-primary" onClick={openCreate} disabled={loading} style={{ visibility: isAdmin ? 'visible' : 'hidden' }}>
                     <Plus size={18} /> 브랜드 추가
                 </button>
             </div>
@@ -180,20 +181,20 @@ export default function BrandManagement() {
             {/* Brand List */}
             <div className="card">
                 <div className="table-container">
-                    <table className="table" style={{ minWidth: '700px' }}>
+                    <table className="table" style={{ minWidth: '700px', tableLayout: 'auto', width: '100%' }}>
                         <thead>
                             <tr>
                                 <th>브랜드명</th>
                                 <th>쇼핑몰 관리자 아이디 (mall_id)</th>
                                 <th>설명</th>
                                 <th style={{ textAlign: 'center' }}>OAuth 인증</th>
-                                <th style={{ textAlign: 'center' }}>관리</th>
+                                {isAdmin && <th style={{ textAlign: 'center' }}>관리</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {brandList.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
+                                    <td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
                                         <Store size={40} style={{ margin: '0 auto 12px', opacity: 0.3, display: 'block' }} />
                                         등록된 브랜드가 없습니다. 브랜드를 추가해보세요.
                                     </td>
@@ -259,6 +260,7 @@ export default function BrandManagement() {
                                                 )}
                                             </div>
                                         </td>
+                                        {isAdmin && (
                                         <td style={{ textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                 <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8125rem' }} onClick={() => openEdit(brand)}>
@@ -269,6 +271,7 @@ export default function BrandManagement() {
                                                 </button>
                                             </div>
                                         </td>
+                                        )}
                                     </tr>
                                 );
                             })}

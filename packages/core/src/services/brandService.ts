@@ -1,50 +1,51 @@
 import client from '@core/api/client';
+import { Brand } from '../types/seeding';
 
 export const brandService = {
     // 브랜드 목록 조회
-    getBrands: async () => {
+    getBrands: async (): Promise<Brand[]> => {
         return await client.get('/brands.php?action=list');
     },
 
     // 브랜드 생성 (name, description, mall_id)
-    createBrand: async (data) => {
+    createBrand: async (data: any): Promise<any> => {
         return await client.post('/brands.php?action=create', data);
     },
 
     // 브랜드 수정 (name, mall_id, description)
-    updateBrand: async (id, data) => {
+    updateBrand: async (id: string | number, data: any): Promise<any> => {
         return await client.put(`/brands.php?id=${id}`, data);
     },
 
     // 브랜드 삭제
-    deleteBrand: async (id) => {
+    deleteBrand: async (id: string | number): Promise<any> => {
         return await client.delete(`/brands.php?id=${id}`);
     },
 
     // OAuth 연결 해제
-    disconnectBrand: async (id) => {
+    disconnectBrand: async (id: string | number): Promise<any> => {
         return await client.get(`/brands.php?action=disconnect&id=${id}`);
     }
 };
 
 export const departmentService = {
     // 부서 목록 조회
-    getDepartments: async () => {
+    getDepartments: async (): Promise<any[]> => {
         return await client.get('/departments.php?action=list');
     },
 
     // 부서 멤버 조회
-    getDeptMembers: async (deptId) => {
+    getDeptMembers: async (deptId: string | number): Promise<any[]> => {
         return await client.get(`/departments.php?action=members&dept_id=${deptId}`);
     },
 
     // 부서 생성
-    createDept: async (data) => {
+    createDept: async (data: any): Promise<any> => {
         return await client.post('/departments.php?action=create', data);
     },
 
     // 사용자 부서 할당
-    assignUser: async (data) => {
+    assignUser: async (data: any): Promise<any> => {
         return await client.post('/departments.php?action=assign_user', data);
     }
 };

@@ -1,4 +1,14 @@
-import axios from 'axios';
+/// <reference types="vite/client" />
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+
+// Axios의 응답 타입을 실제 데이터 타입으로만 인식하도록 커스텀 인터페이스 정의
+interface CustomAxiosInstance extends Omit<AxiosInstance, 'get' | 'post' | 'put' | 'delete' | 'patch'> {
+    get<T = any>(url: string, config?: any): Promise<T>;
+    post<T = any>(url: string, data?: any, config?: any): Promise<T>;
+    put<T = any>(url: string, data?: any, config?: any): Promise<T>;
+    delete<T = any>(url: string, config?: any): Promise<T>;
+    patch<T = any>(url: string, data?: any, config?: any): Promise<T>;
+}
 
 const client = axios.create({
     baseURL: import.meta.env.VITE_USE_MOCK === 'true'
@@ -8,13 +18,13 @@ const client = axios.create({
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true',
     },
-});
+}) as CustomAxiosInstance;
 
 // Interceptors for global error handling and loading if needed
 client.interceptors.request.use(
-    (config) => {
+    (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem('token');
-        if (token) {
+        if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`; // Authorization header
         }
         return config;
@@ -25,8 +35,8 @@ client.interceptors.request.use(
 );
 
 client.interceptors.response.use(
-    (response) => {
-        return response.data;
+    (response: AxiosResponse) => {
+        return response.data; // 여기서 이미 언랩됨
     },
     (error) => {
         // Global error handling

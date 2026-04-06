@@ -1,7 +1,20 @@
+import React, { FC, useContext } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FilePlus, PackageSearch, Users, Settings, X, Truck, Store } from 'lucide-react';
+import { LayoutDashboard, FilePlus, PackageSearch, Users, Settings, X, Truck, Store, LogOut } from 'lucide-react';
+import { AppContext } from '@core/contexts/AppContext';
 
-export default function Sidebar({ isOpen, closeSidebar }) {
+interface SidebarProps {
+  isOpen: boolean;
+  closeSidebar: () => void;
+}
+
+const Sidebar: FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
+  const { logout, currentUser } = useContext(AppContext);
+  const isAdmin = currentUser?.role === 'admin';
+
+  const handleLogout = () => {
+    if (window.confirm('로그아웃 하시겠습니까?')) logout();
+  };
   return (
     <>
       <div className={`sidebar-overlay ${isOpen ? 'open' : ''}`} onClick={closeSidebar} />
@@ -42,15 +55,21 @@ export default function Sidebar({ isOpen, closeSidebar }) {
             <Store size={20} />
             <span>브랜드 관리</span>
           </NavLink>
-          <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <Users size={20} />
-            <span>계정 및 권한 관리</span>
-          </NavLink>
+          {isAdmin && (
+            <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <Users size={20} />
+              <span>계정 및 권한 관리</span>
+            </NavLink>
+          )}
 
           <div style={{ marginTop: 'auto' }}>
+            <button className="nav-link" style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)' }} onClick={handleLogout}>
+              <LogOut size={20} />
+              <span>로그아웃</span>
+            </button>
             <NavLink to="/settings" onClick={closeSidebar} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <Settings size={20} />
-              <span>시스템 공통값 세팅</span>
+              <span>시스템 공통값 안내</span>
             </NavLink>
           </div>
         </nav>
@@ -65,4 +84,6 @@ export default function Sidebar({ isOpen, closeSidebar }) {
       `}</style>
     </>
   );
-}
+};
+
+export default Sidebar;

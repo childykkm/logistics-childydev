@@ -1,0 +1,156 @@
+/* Page Header */
+.headerCard {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+.headerTitle {
+    margin: 0;
+}
+
+/* Table */
+.tableFixed {
+    min-width: 800px;
+}
+.emptyCell {
+    text-align: center;
+    padding: 32px;
+}
+.emptyText {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-muted);
+}
+.loader {
+    margin: 0 auto;
+    color: var(--primary);
+}
+
+/* Table Cell Styling */
+.nameCell {
+    font-weight: 600;
+    text-align: center;
+}
+.emailCell {
+    color: var(--text-muted);
+    text-align: center;
+}
+.brandBadgeWrap {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.brandBadge {
+    background: #F3F4F6;
+    color: #374151;
+}
+.unassignedText {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+.dateText {
+    color: var(--text-muted);
+}
+.actionWrap {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+.btnSmall {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+}
+.btnDanger {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+/* Brand Checkboxes */
+.brandBtnWrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.btnTiny {
+    padding: 4px 10px;
+    font-size: 0.8125rem;
+}
+.brandGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.brandLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.brandText {
+    font-size: 0.875rem;
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modalContent {
+    background: white;
+    width: 100%;
+    max-width: 400px;
+    border-radius: 12px;
+    padding: 24px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.modalTitle {
+    margin: 0;
+    font-size: 1.125rem;
+}
+.btnClose {
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.formGroupSmall {
+    margin-bottom: 12px;
+}
+.formGroupLarge {
+    margin-bottom: 16px;
+}
+.modalFooter {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* 추가 스타일 */
+.centeredTh {
+    text-align: center;
+}
+
+.dateCell {
+    text-align: center;
+    color: var(--text-muted);
+}

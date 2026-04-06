@@ -1,28 +1,62 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { seedingService } from '@core/services/seedingService';
 import client from '@core/api/client';
 import { authService } from '@core/services/authService';
-import { brandService, departmentService } from '@core/services/brandService';
+import { brandService, departmentService, permissionService } from '@core/services/brandService';
 import { userService } from '@core/services/userService';
 import { STATUS_MAP } from '@core/constants/status';
+import { Seeding, User, Brand } from '../types/seeding';
+import { approveInventory, rejectInventory } from '@core/services/inventoryApprovalService';
 
-export const AppContext = createContext();
+export interface AppContextType {
+    isLoading: boolean;
+    error: string | null;
+    clearError: () => void;
+    fetchData: (params?: any) => Promise<any>;
+    seedings: Seeding[];
+    addSeeding: (newSeedingData: any) => Promise<void>;
+    updateSeeding: (id: string, updatedData: any) => Promise<void>;
+    deleteSeeding: (id: string) => Promise<void>;
+    accounts: any[];
+    addAccount: (account: any) => Promise<void>;
+    updateAccount: (id: number, updatedData: any) => Promise<void>;
+    deleteAccount: (id: number) => Promise<void>;
+    globalSearch: string;
+    setGlobalSearch: (s: string) => void;
+    brands: Brand[];
+    addBrand: (b: any) => Promise<void>;
+    removeBrand: (b: any) => Promise<void>;
+    currentUser: User | null;
+    setCurrentUser: (u: User | null) => void;
+    departments: any[];
+    login: (userId: string, password: string) => Promise<{ success: boolean; message?: string }>;
+    logout: () => void;
+    register: (userData: any) => Promise<any>;
+    editAccountTarget: any;
+    openEditAccount: (user: any, onSaved?: any) => void;
+    closeEditAccount: () => void;
+    onEditAccountSaved: any;
+    approveInventory: (params: any) => Promise<void>;
+    rejectInventory: (params: any) => Promise<void>;
+}
 
-export const AppProvider = ({ children }) => {
+export const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export const AppProvider = ({ children }: { children: ReactNode }) => {
     // Global Status
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Data State
-    const [seedings, setSeedings] = useState([]);
-    const [accounts, setAccounts] = useState([]);
-    const [brands, setBrands] = useState([]);
-    const [departments, setDepartments] = useState([]);
-    const [currentUser, setCurrentUser] = useState(null);
-    const [globalSearch, setGlobalSearch] = useState('');
-    const [isAuthChecking, setIsAuthChecking] = useState(true);
-    const [editAccountTarget, setEditAccountTarget] = useState(null);
-    const [onEditAccountSaved, setOnEditAccountSaved] = useState(null);
+    const [seedings, setSeedings] = useState<Seeding[]>([]);
+    const [accounts, setAccounts] = useState<any[]>([]);
+    const [brands, setBrands] = useState<Brand[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [globalSearch, setGlobalSearch] = useState<string>('');
+    const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+    const [editAccountTarget, setEditAccountTarget] = useState<any>(null);
+    const [onEditAccountSaved, setOnEditAccountSaved] = useState<any>(null);
 
     const openEditAccount = (user, onSaved) => {
         setEditAccountTarget(user);
@@ -37,21 +71,22 @@ export const AppProvider = ({ children }) => {
     useEffect(() => {
         const verifySession = async () => {
             try {
-                // localStorage fallback if token API isn't fully ready
-                const savedUser = localStorage.getItem('currentUser');
-                
                 const token = localStorage.getItem('token');
                 if (!token) {
-                    if (savedUser) setCurrentUser(JSON.parse(savedUser));
+                    setIsAuthChecking(false);
                     return;
                 }
-                
                 const res = await authService.verifyToken();
-                const user = Array.isArray(res) ? null : (res?.user || res?.data || res);
-                if (user && (user.id || user.userId)) {
-                    setCurrentUser(user);
-                } else if (savedUser) {
-                    setCurrentUser(JSON.parse(savedUser));
+                const tokenUser = Array.isArray(res) ? null : (res?.user || res?.data || res);
+                if (tokenUser && (tokenUser.id || tokenUser.user_id)) {
+                    const userId = tokenUser.id ?? tokenUser.user_id;
+                    try {
+                        const detailRes = await userService.getUserDetail(userId);
+                        const fresh = (detailRes as any)?.data || (detailRes as any)?.user || detailRes;
+                        setCurrentUser({ ...fresh, id: fresh.id ?? fresh.user_id });
+                    } catch {
+                        setCurrentUser({ ...tokenUser, id: userId });
+                    }
                 }
             } catch (err) {
                 console.warn('Authentication verification failed.', err);
@@ -63,7 +98,7 @@ export const AppProvider = ({ children }) => {
     }, []);
 
     // Load App Data when currentUser is verified
-    const fetchData = useCallback(async (params = {}) => {
+    const fetchData = useCallback(async (params: any = {}) => {
         if (!currentUser) return;
 
         try {
@@ -72,13 +107,13 @@ export const AppProvider = ({ children }) => {
 
             // 1. Fetch Brands & Departments
             let brandRes;
-            const isNotAdmin = currentUser.role !== 'admin' && currentUser.role !== '통합 어드민';
+            const isNotAdmin = currentUser.role !== 'admin';
             
             // 일반 사용자일 경우 자신의 브랜드 목록만, 어드민이면 전체 브랜드 조회
             // permissionService.getMyBrands() 로 권한있는 브랜드만 가져오게 백엔드 API 명세 반영
             // 백엔드 오류(권한, 테이블 부재)를 대비하여 catch 구문 추가
             const brandPromise = isNotAdmin 
-                ? import('@core/services/brandService').then(m => m.permissionService.getMyBrands()).catch(() => brandService.getBrands().catch(() => []))
+                ? permissionService.getMyBrands().catch(() => brandService.getBrands().catch(() => []))
                 : brandService.getBrands().catch(() => []);
             
             const deptPromise = departmentService.getDepartments().catch(() => []);
@@ -104,18 +139,54 @@ export const AppProvider = ({ children }) => {
             setBrands(brandList);
             setDepartments(deptList);
 
-            const seedingRes = await seedingService.getSeedings(params).catch(() => []);
+            // SeedingList 등에서 per_page를 명시적으로 넘기면 그것을 우선 사용하고,
+            // per_page가 없는 경우(InventoryCheck 등)에만 500으로 설정합니다.
+            const apiParams = {
+                ...params,
+                per_page: params?.per_page ?? 500,
+            };
+            const seedingRes: any = await seedingService.getSeedings(apiParams).catch(() => ({}));
             const rawList = Array.isArray(seedingRes) ? seedingRes : (seedingRes?.data || []);
-            const pagination = seedingRes?.pagination ?? {};
-            const serverTotal = pagination.total ?? rawList.length;
-            const serverTotalPages = pagination.total_pages ?? 1;
-            const serverHasNext = (pagination.page ?? 1) < serverTotalPages;
+            
+            // pagination 정보 파싱 — 서버마다 필드명이 다를 수 있어 후보를 넓게 탐색
+            const pagination = seedingRes?.pagination || {};
+            const perPage = apiParams.per_page;
+
+            // 전체 건수: 서버가 주는 다양한 필드 후보를 순서대로 탐색
+            const serverTotal =
+                pagination.total ??
+                pagination.count ??
+                pagination.total_count ??
+                pagination.totalCount ??
+                seedingRes?.total ??
+                seedingRes?.count ??
+                seedingRes?.total_count ??
+                rawList.length; // 최후 폴백
+
+            // 전체 페이지 수
+            const serverTotalPages =
+                pagination.total_pages ??
+                pagination.totalPages ??
+                pagination.page_count ??
+                seedingRes?.total_pages ??
+                seedingRes?.totalPages ??
+                Math.ceil(serverTotal / perPage);
+
+            const currentPage = params?.page ?? pagination.page ?? pagination.current_page ?? 1;
+
+            // rawList가 꽉 찼으면(full page) 다음 페이지가 있다고 항상 간주
+            const fullPageReturned = rawList.length >= perPage;
+            const serverHasNext =
+                pagination.has_next ??
+                pagination.hasNext ??
+                seedingRes?.has_next ??
+                ((currentPage < serverTotalPages) || fullPageReturned);
 
             // 서버 영문 status → 한글 변환
             const toKorStatus = (s) => STATUS_MAP[s] ?? s;
 
-            const loadedSeedings = [];
-            rawList.forEach((req) => {
+            const loadedSeedings: Seeding[] = [];
+            rawList.forEach((req: any) => {
                 // item이 배열 또는 단일 객체로 내려올 수 있음
                 const rawItem = req.item;
                 const itemList = Array.isArray(rawItem) ? rawItem : (rawItem ? [rawItem] : []);
@@ -137,7 +208,7 @@ export const AppProvider = ({ children }) => {
                         zipcode: '', address: '', orderNo: '', sellicCode: '', sellicOption: '',
                     });
                 } else {
-                    itemList.forEach(item => {
+                    itemList.forEach((item: any) => {
                         loadedSeedings.push({
                             id: req.request_no,
                             _itemId: item.id,
@@ -145,7 +216,7 @@ export const AppProvider = ({ children }) => {
                             brand: req.brand_name ?? '',
                             brand_id: req.brand_id,
                             status: toKorStatus(item.status ?? req.status),
-                            hasStockIssue: item.has_stock_issue ?? (item.status === 'reviewing') ?? false,
+                            hasStockIssue: item.has_stock_issue ?? (item.status === 'reviewing'),
                             date: item.order_date ?? req.created_at?.slice(0, 10) ?? '',
                             itemCode: item.company_product_code ?? '',
                             itemName: item.mall_product_name ?? item.company_product_code ?? '',
@@ -174,15 +245,15 @@ export const AppProvider = ({ children }) => {
 
             // 3. Fetch Accounts (if Admin)
             try {
-                if (currentUser.role === 'admin' || currentUser.role === '통합 어드민') {
-                    const userList = await userService.getUsers();
-                    const list = Array.isArray(userList) ? userList : (userList?.data || userList?.users || []);
+                if (currentUser.role === 'admin') {
+                    const userList: any = await userService.getUsers();
+                    const list = Array.isArray(userList) ? userList : (userList?.data || []);
                     
                     // 각 사용자의 브랜드 권한 병렬 조회 (AdminSettings의 로직을 전역으로 이동)
                     const listWithBrands = await Promise.all(
                         list.map(async (user) => {
                             try {
-                                const pRes = await import('@core/services/brandService').then(m => m.permissionService.getUserPermissions(user.id));
+                                const pRes = await permissionService.getUserPermissions(user.id);
                                 const perms = Array.isArray(pRes) ? pRes : (pRes?.data || []);
                                 const allowedBrands = perms
                                     .filter(b => b.has_permission === 1 || b.has_permission === true)
@@ -245,8 +316,10 @@ export const AppProvider = ({ children }) => {
             const keys = Object.keys(updatedData);
             const itemId = updatedData._itemId ?? seedings.find(s => s.id === id)?._itemId;
             const dbId = updatedData._dbId ?? seedings.find(s => s.id === id)?._dbId;
-            if (keys.length === 1 && keys[0] === 'status') {
-                await seedingService.updateSeedingStatus(dbId, updatedData.status);
+            // 상태값이나 메모(반려사유)만 업데이트하는 부분 업데이트의 경우 전용 API 호출
+            const isPartialUpdate = keys.every(k => ['status', 'notes', '_itemId', '_dbId'].includes(k));
+            if (isPartialUpdate && (updatedData.status !== undefined || updatedData.notes !== undefined)) {
+                await seedingService.updateSeedingStatus(dbId, updatedData.status, updatedData.notes);
             } else {
                 await seedingService.updateSeeding(itemId ?? id, updatedData);
             }
@@ -288,7 +361,6 @@ export const AppProvider = ({ children }) => {
     };
     const deleteAccount = async (id) => {
         try {
-            await userService.deleteUser(id);
             setAccounts(prev => prev.filter(a => a.id !== id));
         } catch (err) {
             setError('계정 삭제 실패');
@@ -339,7 +411,6 @@ export const AppProvider = ({ children }) => {
                 userObj = userObj || result; // 최후의 fallback
                 
                 setCurrentUser(userObj);
-                localStorage.setItem('currentUser', JSON.stringify(userObj));
                 return { success: true };
             }
             return { success: false, message: result.message };
@@ -368,7 +439,6 @@ export const AppProvider = ({ children }) => {
 
     const logout = () => {
         setCurrentUser(null);
-        localStorage.removeItem('currentUser');
         localStorage.removeItem('token');
     };
 
@@ -381,10 +451,12 @@ export const AppProvider = ({ children }) => {
         currentUser, setCurrentUser,
         departments, login, logout, register,
         editAccountTarget, openEditAccount, closeEditAccount, onEditAccountSaved,
+        approveInventory, rejectInventory,
     }), [
         isLoading, error, fetchData, seedings, accounts, 
         globalSearch, brands, currentUser, departments, 
-        editAccountTarget, onEditAccountSaved
+        editAccountTarget, onEditAccountSaved,
+        approveInventory, rejectInventory
     ]);
 
     if (isAuthChecking) {
@@ -396,4 +468,13 @@ export const AppProvider = ({ children }) => {
             {children}
         </AppContext.Provider>
     );
+};
+
+// 컨텍스트를 편리하게 사용하기 위한 커스텀 훅
+export const useAppContext = () => {
+    const context = React.useContext(AppContext);
+    if (!context) {
+        throw new Error('useAppContext must be used within an AppProvider');
+    }
+    return context;
 };

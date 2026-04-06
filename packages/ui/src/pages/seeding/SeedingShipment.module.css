@@ -1,0 +1,48 @@
+.emptyStateTableLarge {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-muted);
+}
+.emptyStateIconLight {
+  margin: 0 auto 16px;
+  opacity: 0.3;
+}
+.tabContainerScrollX {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.btnPrimaryPurple {
+  background: #8B5CF6;
+  color: white;
+  border-color: #8B5CF6;
+}
+.btnPrimaryPurple:hover {
+  background: #7C3AED;
+  border-color: #7C3AED;
+}
+.ellipsisCol250 {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ellipsisCol150 {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.idColStrongInfo {
+  font-weight: 600;
+  color: var(--info);
+  white-space: nowrap;
+}
+.nowrapCol {
+  white-space: nowrap;
+}
+.tableMinWidth1000 {
+  min-width: 1000px;
+}

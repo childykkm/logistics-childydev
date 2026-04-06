@@ -1,0 +1,201 @@
+.tableWrapper {
+  max-height: 600px;
+  overflow-y: auto;
+}
+.tableWide {
+  min-width: 1200px;
+}
+.tableNormal {
+  border: 1px solid var(--border-color);
+  min-width: 1000px;
+}
+.fixedHeader {
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+}
+.headerRow {
+  background: #F9FAFB;
+  white-space: nowrap;
+}
+.centerCol60 {
+  text-align: center;
+  width: 60px;
+}
+.col100 {
+  width: 100px;
+}
+.col120 {
+  width: 120px;
+}
+.col140 {
+  width: 140px;
+}
+.col200 {
+  width: 200px;
+}
+.centerCol160 {
+  text-align: center;
+  width: 160px;
+}
+.fontSmall {
+  font-size: 0.875rem;
+}
+.fontMicro {
+  font-size: 0.75rem;
+}
+.fontBold {
+  font-weight: 600;
+}
+.textMuted {
+  color: var(--text-muted);
+}
+.textDanger {
+  color: var(--danger);
+}
+.textSuccess {
+  color: var(--success);
+}
+.inputSmall {
+  width: 70px;
+  padding: 4px 8px;
+}
+.btnRemove {
+  color: var(--danger);
+  padding: 4px;
+}
+.rowShortage {
+  background-color: #FFF5F5;
+}
+.rowNormal {
+  background-color: inherit;
+}
+.divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 12px 0;
+}
+.formRowFlex {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.inputReadonly {
+  width: 120px;
+  background: #F9FAFB;
+}
+.inputReadonlyBlock {
+  background: #F9FAFB;
+  margin-bottom: 8px;
+}
+.inputDisabled {
+  background: #F3F4F6;
+}
+.inputDisabledWide {
+  background: #F3F4F6;
+  min-width: 150px;
+}
+.btnSearchAddr {
+  padding: 8px 16px;
+}
+.postcodeOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.postcodeModal {
+  background: white;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 16px;
+  position: relative;
+}
+.postcodeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.postcodeTitle {
+  margin: 0;
+  font-size: 1.125rem;
+}
+.closeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.postcodeFrame {
+  height: 400px;
+}
+.mt8 {
+  margin-top: 8px;
+}
+.btnAddProduct {
+  padding: 8px 12px;
+  font-size: 0.875rem;
+}
+.tableWrapPadding {
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.nowrapCol {
+  white-space: nowrap;
+}
+.btnSearchProduct {
+  padding: 6px 10px;
+  font-size: 0.875rem;
+}
+.inputQty {
+  width: 80px;
+}
+.flexCenterCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+.alertTextRow {
+  font-size: 0.75rem;
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: center;
+}
+.soldOutBadge {
+  font-size: 0.75rem;
+  color: var(--danger);
+  font-weight: 700;
+}
+.btnRemoveList {
+  color: var(--danger);
+  padding: 6px;
+}
+.submitActionWrap {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+.btnDraft {
+  padding: 12px 24px;
+  flex: 1;
+}
+.btnSubmit {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  flex: 2;
+}
