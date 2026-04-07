@@ -140,7 +140,9 @@ const SeedingShipment: FC = () => {
                                 <th style={{ width: '150px' }}>요청ID</th>
                                 <th style={{ width: '100px' }}>브랜드</th>
                                 <th style={{ width: '100px' }}>수취인</th>
-                                <th style={{ width: '250px' }}>상품정보</th>
+                                <th style={{ width: '180px' }}>상품명</th>
+                                <th style={{ width: '90px', textAlign: 'center' }}>색상</th>
+                                <th style={{ width: '90px', textAlign: 'center' }}>사이즈</th>
                                 <th style={{ width: '80px' }}>수량</th>
                                 <th style={{ width: '120px' }}>요청일자</th>
                                 <th style={{ width: '100px' }}>상태</th>
@@ -156,9 +158,9 @@ const SeedingShipment: FC = () => {
                                     <td className={styles.idColStrongInfo}>{row.id}</td>
                                     <td className={styles.nowrapCol}>{row.brand}</td>
                                     <td className={styles.nowrapCol}>{row.recipientName}</td>
-                                    <td className={styles.ellipsisCol250}>
-                                        {row.itemName} ({row.option1}/{row.option2})
-                                    </td>
+                                    <td className={styles.ellipsisCol250}>{row.itemName}</td>
+                                    <td className={styles.nowrapCol} style={{ textAlign: 'center' }}>{row.option1 || '-'}</td>
+                                    <td className={styles.nowrapCol} style={{ textAlign: 'center' }}>{row.option2 || '-'}</td>
                                     <td className={styles.nowrapCol}>{row.qty}</td>
                                     <td className={styles.nowrapCol}>{row.date}</td>
                                     <td className={styles.nowrapCol}>
@@ -169,7 +171,7 @@ const SeedingShipment: FC = () => {
                             ))}
                             {targetList.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className={styles.emptyStateTableLarge}>
+                                    <td colSpan={11} className={styles.emptyStateTableLarge}>
                                         <PackageCheck size={48} className={styles.emptyStateIconLight} />
                                         <p>해당 상태의 시딩 요청 건이 없습니다.</p>
                                     </td>

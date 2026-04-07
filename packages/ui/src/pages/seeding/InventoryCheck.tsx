@@ -197,7 +197,9 @@ const InventoryCheck: FC = () => {
                                 <th style={{ width: '100px' }}>브랜드</th>
                                 <th style={{ width: '110px' }}>요청일자</th>
                                 <th style={{ width: '90px' }}>요청자</th>
-                                <th style={{ width: '220px' }}>상품명</th>
+                                <th style={{ width: '180px' }}>상품명</th>
+                                <th style={{ width: '90px', textAlign: 'center' }}>색상</th>
+                                <th style={{ width: '90px', textAlign: 'center' }}>사이즈</th>
                                 <th style={{ width: '110px', textAlign: 'center' }}>시딩 수량</th>
                                 <th style={{ width: '110px', textAlign: 'center' }}>상태</th>
                                 {activeTab === '대기' && !isRequester && (
@@ -218,6 +220,8 @@ const InventoryCheck: FC = () => {
                                     <td className={styles.nowrapCol}>{row.date}</td>
                                     <td className={styles.nowrapCol}>{row.orderName}</td>
                                     <td className={styles.ellipsisCol220}>{row.itemName}</td>
+                                    <td className={styles.nowrapCol} style={{ textAlign: 'center' }}>{row.option1 || '-'}</td>
+                                    <td className={styles.nowrapCol} style={{ textAlign: 'center' }}>{row.option2 || '-'}</td>
                                     <td className={styles.nowrapCol} style={{ textAlign: 'center' }}>
                                         <span className={`badge badge-warning ${styles.badgeWarningSmall}`}>{row.qty}개</span>
                                     </td>
@@ -251,7 +255,7 @@ const InventoryCheck: FC = () => {
                             ))}
                             {dataToRender.length === 0 && (
                                 <tr>
-                                    <td colSpan={activeTab === '대기' && !isRequester ? 9 : 7} className={styles.emptyStateTable}>
+                                    <td colSpan={activeTab === '대기' && !isRequester ? 11 : 9} className={styles.emptyStateTable}>
                                         <div style={{ padding: '40px 0', textAlign: 'center' }}>
                                             <PackageSearch size={48} className={styles.emptyStateIcon} />
                                             <p>{activeTab === '대기' ? '승인 대기 중인 시딩 요청이 없습니다.' : '처리 완료된 시딩 요청이 없습니다.'}</p>
