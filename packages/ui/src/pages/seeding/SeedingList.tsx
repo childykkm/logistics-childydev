@@ -1,126 +1,112 @@
 import React, { useState, useMemo, useEffect, useCallback, FC } from 'react';
-import { Filter, Download, Trash2, Edit, BarChart2, PieChart as PieChartIcon, AlertCircle, Search } from 'lucide-react';
+import { Filter, Download, Trash2, Edit, BarChart2, PieChart as PieChartIcon, AlertCircle, Search, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '@core/contexts/AppContext';
+import { usePermission } from '@core/hooks/usePermission';
 import { seedingService } from '@core/services/seedingService';
 import { exportSeedingToExcel } from '@core/services/excelSeedingExport';
-import { STATUS_COLORS, STATUS_LABEL, STATUS_LIST } from '@core/constants/status';
+import { STATUS_COLORS, STATUS_LABEL, STATUS_LIST, STATUS_MAP_TO_ENG, STATUS_MAP } from '@core/constants/status';
 import { PageHeader, Card } from '../../components/common/Layout';
 import StatusBadge from '../../components/StatusBadge';
 import { Seeding } from '@core/types/seeding';
 import styles from './SeedingList.module.css';
 import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+    ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
+import { BarChart2 as BarChart2Icon } from 'lucide-react';
 
 const SeedingList: FC = () => {
-    const { seedings, deleteSeeding, globalSearch, setGlobalSearch, brands, fetchData, currentUser } = useAppContext();
-    const isRequester = currentUser?.role === 'requester';
+    const { deleteSeeding, brands } = useAppContext();
+    const { isRequester } = usePermission();
     const navigate = useNavigate();
 
-    const [filterBrand, setFilterBrand] = useState<string>('전체 브랜드');
-    const [filterStatus, setFilterStatus] = useState<string>('전체 상태');
+    const [rows, setRows] = useState<Seeding[]>([]);
+    const [filterBrand, setFilterBrand] = useState<string>('');
+    const [filterStatus, setFilterStatus] = useState<string>('');
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [page, setPage] = useState<number>(1);
     const [limit, setLimit] = useState<number>(30);
-
-    const fetchPage = useCallback(async () => {
-        await fetchData(); // Fetch all (up to 500 by default)
-    }, [fetchData]);
+    const [totalCount, setTotalCount] = useState<number>(0);
+    const [totalPages, setTotalPages] = useState<number>(1);
+    const [localSearch, setLocalSearch] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
 
     useEffect(() => {
-        fetchPage();
-    }, [fetchPage]);
+        const timer = setTimeout(() => setDebouncedSearch(localSearch), 500);
+        return () => clearTimeout(timer);
+    }, [localSearch]);
 
-    // Chart Data calculations
+    useEffect(() => {
+        const load = async () => {
+            const matchedBrand = brands.find(b => {
+                const bName = typeof b === 'object' ? (b.name || (b as any).brand_name) : b;
+                return bName === filterBrand;
+            });
+            const brandId = (matchedBrand as any)?.id || (matchedBrand as any)?.brand_id;
+            const params: any = { page, per_page: limit };
+            if (brandId) params.brand_id = brandId;
+            if (filterStatus) params.status = STATUS_MAP_TO_ENG[filterStatus] ?? filterStatus;
+            if (startDate) params.start_date = startDate;
+            if (endDate) params.end_date = endDate;
+            if (debouncedSearch) params.keyword = debouncedSearch;
+
+            const res: any = await seedingService.getSeedings(params).catch(() => ({}));
+            const rawList = Array.isArray(res) ? res : (res?.data || []);
+            const pagination = res?.pagination || {};
+            const total = pagination.total ?? res?.total ?? rawList.length;
+            const pages = (pagination.total_pages ?? res?.total_pages ?? Math.ceil(total / limit)) || 1;
+            setTotalCount(total);
+            setTotalPages(pages);
+
+            const toKorStatus = (s: string) => STATUS_MAP[s] ?? s;
+            const loaded: Seeding[] = [];
+            rawList.forEach((req: any) => {
+                const rawItem = req.item;
+                const itemList = Array.isArray(rawItem) ? rawItem : (rawItem ? [rawItem] : []);
+                if (itemList.length === 0) {
+                    loaded.push({ id: req.request_no, _dbId: req.id, brand: req.brand_name ?? '', brand_id: req.brand_id, date: req.created_at?.slice(0, 10) ?? '', orderName: req.requester_name ?? '', memo: req.notes ?? '', status: toKorStatus(req.status), hasStockIssue: false, itemCode: '', itemName: '', option1: '', option2: '', option3: '', qty: '', price: '', paymentPrice: '', expectedPrice: '', orderPhone: '', recipientName: '', recipientPhone: '', zipcode: '', address: '', orderNo: '', sellicCode: '', sellicOption: '' });
+                } else {
+                    itemList.forEach((item: any) => {
+                        loaded.push({ id: req.request_no, _itemId: item.id, _dbId: req.id, brand: req.brand_name ?? '', brand_id: req.brand_id, status: toKorStatus(item.status ?? req.status), hasStockIssue: item.has_stock_issue ?? (item.status === 'reviewing'), date: item.order_date ?? req.created_at?.slice(0, 10) ?? '', itemCode: item.company_product_code ?? '', itemName: item.mall_product_name ?? item.company_product_code ?? '', option1: item.option_name ?? '', option2: item.option_name2 ?? '', option3: item.option_name3 ?? '', qty: item.order_qty ?? '', price: item.mall_sale_price ?? '', paymentPrice: item.mall_payment_amount ?? '', expectedPrice: item.settlement_amount ?? '', orderName: item.orderer_name ?? req.requester_name ?? '', orderPhone: item.orderer_phone ?? '', recipientName: item.recipient_name ?? '', recipientPhone: item.recipient_phone ?? '', zipcode: item.recipient_zipcode ?? '', address: item.recipient_address ?? '', orderNo: item.mall_order_no ?? '', memo: item.notes ?? req.notes ?? '', sellicCode: item.sellic_product_code ?? '', sellicOption: item.sellic_option_code ?? '' });
+                    });
+                }
+            });
+            setRows(loaded);
+        };
+        load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, limit, filterBrand, filterStatus, startDate, endDate, debouncedSearch]);
+
+    const handleSearch = () => { setPage(1); };
+
     const chartData = useMemo(() => {
         const brandCounts: Record<string, number> = {};
-        seedings.forEach(s => {
+        rows.forEach(s => {
             const bName = s.brand || '기타';
             brandCounts[bName] = (brandCounts[bName] || 0) + 1;
         });
-        const brandChart = Object.keys(brandCounts).map(name => ({
-            name,
-            count: brandCounts[name]
-        })).sort((a, b) => b.count - a.count);
-
+        const brandChart = Object.keys(brandCounts).map(name => ({ name, count: brandCounts[name] })).sort((a, b) => b.count - a.count);
         const statusCounts: Record<string, number> = {};
-        seedings.forEach(s => {
-            statusCounts[s.status] = (statusCounts[s.status] || 0) + 1;
-        });
-        const statusChart = Object.keys(statusCounts).map(name => ({
-            name,
-            value: statusCounts[name]
-        }));
-
+        rows.forEach(s => { statusCounts[s.status] = (statusCounts[s.status] || 0) + 1; });
+        const statusChart = Object.keys(statusCounts).map(name => ({ name, value: statusCounts[name] }));
         return { brandChart, statusChart };
-    }, [seedings]);
-
-    const filteredData = useMemo(() => {
-        return seedings.filter(item => {
-            const matchBrand = filterBrand === '전체 브랜드' || item.brand === filterBrand;
-            const matchStatus = filterStatus === '전체 상태' || item.status === filterStatus;
-            const matchStartDate = startDate ? new Date(item.date) >= new Date(startDate) : true;
-            const matchEndDate = endDate ? new Date(item.date) <= new Date(endDate) : true;
-            const matchSearch = globalSearch ? (
-                (item.orderName || '').includes(globalSearch) ||
-                (item.orderPhone || '').includes(globalSearch) ||
-                (item.id || '').includes(globalSearch) ||
-                (item.recipientName || '').includes(globalSearch)
-            ) : true;
-            return matchBrand && matchStatus && matchStartDate && matchEndDate && matchSearch;
-        });
-    }, [seedings, filterBrand, filterStatus, startDate, endDate, globalSearch]);
-
-    // 로컬 페이징 계산 (filteredData 이후에 선언되어야 함)
-    const pagination = useMemo(() => {
-        // filteredData가 이미 seedings, filterBrand 등에 의존하고 있으므로
-        // filteredData.length가 실제 "전체" 필터링된 데이터 갯수입니다.
-        const totalCount = filteredData.length;
-        const totalPages = Math.ceil(totalCount / limit) || 1;
-        const hasNext = page < totalPages;
-
-        // 실제 렌더링할 데이터 슬라이싱
-        const startIndex = (page - 1) * limit;
-        const dataToRender = filteredData.slice(startIndex, startIndex + limit);
-
-        return { totalCount, totalPages, hasNext, dataToRender };
-    }, [filteredData, page, limit]);
+    }, [rows]);
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedIds(filteredData.map(item => item.id));
-        } else {
-            setSelectedIds([]);
-        }
+        setSelectedIds(e.target.checked ? rows.map(item => item.id) : []);
     };
 
     const handleSelect = (id: string) => {
-        if (selectedIds.includes(id)) {
-            setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
-        } else {
-            setSelectedIds([...selectedIds, id]);
-        }
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]);
     };
 
     const handleDownload = () => {
-        if (selectedIds.length === 0) {
-            return alert('엑셀 다운로드할 요청 내역을 먼저 선택해주세요.');
-        }
+        if (selectedIds.length === 0) return alert('엑셀 다운로드할 요청 내역을 먼저 선택해주세요.');
         try {
-            const dataToExport = filteredData.filter(item => selectedIds.includes(item.id));
+            const dataToExport = rows.filter(item => selectedIds.includes(item.id));
             exportSeedingToExcel(dataToExport);
         } catch (error: any) {
             alert(error.message || '엑셀 다운로드 중 오류가 발생했습니다.');
@@ -128,29 +114,26 @@ const SeedingList: FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        const found = seedings.find(s => s.id === id);
+        const found = rows.find(s => s.id === id);
         if (window.confirm('선택한 요청을 정말 삭제하시겠습니까?')) {
             const dbId = found?._dbId ? String(found._dbId) : id;
             await deleteSeeding(dbId);
             setSelectedIds(prev => prev.filter(sid => sid !== id));
+            setPage(1);
         }
     };
 
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0) return alert('삭제할 항목을 선택해주세요.');
-
-        const selectedSeedings = selectedIds.map(id => seedings.find(s => s.id === id)).filter((s): s is Seeding => !!s);
-        const deletable = selectedSeedings;
-        let confirmMsg = `선택한 ${selectedIds.length}건을 모두 삭제하시겠습니까?`;
-
-        if (window.confirm(confirmMsg)) {
+        if (window.confirm(`선택한 ${selectedIds.length}건을 모두 삭제하시겠습니까?`)) {
             try {
+                const deletable = selectedIds.map(id => rows.find(s => s.id === id)).filter((s): s is Seeding => !!s);
                 const requestDbIds = [...new Set(deletable.map(s => s._dbId).filter((id): id is number => !!id))];
                 await Promise.all(requestDbIds.map(dbId => seedingService.deleteSeeding(String(dbId))));
                 setSelectedIds([]);
-                await fetchData();
+                setPage(1);
                 alert(`${deletable.length}건이 삭제되었습니다.`);
-            } catch (err) {
+            } catch {
                 alert('삭제 중 오류가 발생했습니다.');
             }
         }
@@ -162,12 +145,7 @@ const SeedingList: FC = () => {
 
             <div className="chart-grid">
                 <Card
-                    title={
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>
-                            <BarChart2 size={20} color="var(--primary)" />
-                            브랜드별 시딩 요청 비중
-                        </div>
-                    }
+                    title={<div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}><BarChart2 size={20} color="var(--primary)" />브랜드별 시딩 요청 비중</div>}
                     style={{ minHeight: '350px' }}
                 >
                     <div className="card-content" style={{ minHeight: '250px', position: 'relative' }}>
@@ -177,10 +155,7 @@ const SeedingList: FC = () => {
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} allowDecimals={false} />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        cursor={{ fill: '#F3F4F6' }}
-                                    />
+                                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{ fill: '#F3F4F6' }} />
                                     <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={40} />
                                 </BarChart>
                             </ResponsiveContainer>
@@ -191,25 +166,14 @@ const SeedingList: FC = () => {
                 </Card>
 
                 <Card
-                    title={
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>
-                            <PieChartIcon size={20} color="var(--success)" />
-                            진행 상태 현황
-                        </div>
-                    }
+                    title={<div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}><PieChartIcon size={20} color="var(--success)" />진행 상태 현황</div>}
                     style={{ minHeight: '350px' }}
                 >
                     <div className="card-content" style={{ minHeight: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                         {chartData.statusChart.length > 0 ? (
                             <ResponsiveContainer width="100%" height={250}>
                                 <PieChart>
-                                    <Pie
-                                        data={chartData.statusChart}
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
+                                    <Pie data={chartData.statusChart} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                                         {chartData.statusChart.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name]?.chart ?? '#9CA3AF'} />
                                         ))}
@@ -229,15 +193,15 @@ const SeedingList: FC = () => {
                 title={
                     <div className={styles.cardTitleFlex}>
                         <span className={`card-title ${styles.cardTitleText}`}>시딩 요청 내역</span>
-                        <span className={styles.cardTitleCount}>전체 {pagination.totalCount}건</span>
+                        <span className={styles.cardTitleCount}>전체 {totalCount}건</span>
                     </div>
                 }
                 headerAction={
                     <div className={styles.headerActionFlex}>
                         {!isRequester && (
-                        <button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '8px 16px' }} onClick={handleBulkDelete}>
-                            <Trash2 size={16} /> 선택 삭제
-                        </button>
+                            <button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '8px 16px' }} onClick={handleBulkDelete}>
+                                <Trash2 size={16} /> 선택 삭제
+                            </button>
                         )}
                         <button className={`btn btn-outline ${styles.cardTitleFlex}`} onClick={handleDownload} style={{ padding: '8px 16px' }}>
                             <Download size={16} /> OMS 엑셀 다운로드
@@ -247,34 +211,47 @@ const SeedingList: FC = () => {
             >
                 <div className="filter-bar">
                     <Filter size={15} color="#9CA3AF" />
-                    <select className="form-select" style={{ width: 'auto', minWidth: '140px' }} value={filterBrand} onChange={e => setFilterBrand(e.target.value)}>
-                        <option>전체 브랜드</option>
+                    <select className="form-select" style={{ width: 'auto', minWidth: '140px' }} value={filterBrand} onChange={e => { setFilterBrand(e.target.value); setPage(1); }}>
+                        <option value="">전체 브랜드</option>
                         {brands.map((b, i) => {
-                            const brandName = typeof b === 'object' ? (b.name || b.brand_name) : b;
+                            const brandName = typeof b === 'object' ? (b.name || (b as any).brand_name) : b;
                             return <option key={i} value={brandName}>{brandName}</option>;
                         })}
                     </select>
-                    <select className="form-select" style={{ width: 'auto', minWidth: '140px' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                        <option>전체 상태</option>
+                    <select className="form-select" style={{ width: 'auto', minWidth: '140px' }} value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}>
+                        <option value="">전체 상태</option>
                         {STATUS_LIST.map((s, i) => <option key={i} value={s}>{STATUS_LABEL[s] ?? s}</option>)}
                     </select>
                     <div className={styles.filterRow}>
-                        <input type="date" className={`form-input ${styles.dateInput}`} value={startDate} onChange={e => setStartDate(e.target.value)} />
+                        <input type="date" className={`form-input ${styles.dateInput}`} value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }} />
                         <span style={{ color: '#9CA3AF' }}>~</span>
-                        <input type="date" className={`form-input ${styles.dateInput}`} value={endDate} onChange={e => setEndDate(e.target.value)} />
+                        <input type="date" className={`form-input ${styles.dateInput}`} value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }} />
                     </div>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
                         <Search size={15} style={{ position: 'absolute', left: '10px', color: '#9CA3AF' }} />
                         <input
                             type="text"
                             className="form-input"
-                            placeholder="요청자, 연락처, ID 검색"
-                            value={globalSearch}
-                            onChange={e => setGlobalSearch(e.target.value)}
+                            placeholder="주문자명, 연락처 검색"
+                            value={localSearch}
+                            onChange={e => { setLocalSearch(e.target.value); setPage(1); }}
                             style={{ paddingLeft: '32px', width: '200px' }}
                         />
                     </div>
-                    <button className="btn btn-primary" style={{ padding: '8px 20px' }}>조회하기</button>
+                    <button
+                        className="btn btn-outline"
+                        style={{
+                            padding: '8px 14px',
+                            fontSize: '0.875rem',
+                            ...(filterBrand || filterStatus || startDate || endDate || localSearch
+                                ? { color: 'var(--primary)', borderColor: 'var(--primary)', background: '#EEF2FF' }
+                                : { color: 'var(--text-muted)', borderColor: 'var(--border-color)' }
+                            )
+                        }}
+                        onClick={() => { setFilterBrand(''); setFilterStatus(''); setStartDate(''); setEndDate(''); setLocalSearch(''); setPage(1); }}
+                    >
+                        <RotateCcw size={14} /> 필터 초기화
+                    </button>
                 </div>
 
                 <div className={styles.tableWrapper}>
@@ -283,11 +260,7 @@ const SeedingList: FC = () => {
                             <thead>
                                 <tr className={styles.nowrapCol}>
                                     <th>
-                                        <input
-                                            type="checkbox"
-                                            onChange={handleSelectAll}
-                                            checked={filteredData.length > 0 && selectedIds.length === filteredData.length}
-                                        />
+                                        <input type="checkbox" onChange={handleSelectAll} checked={rows.length > 0 && selectedIds.length === rows.length} />
                                     </th>
                                     <th className={styles.minW80Col} style={{ textAlign: 'center' }}>상태</th>
                                     <th style={{ textAlign: 'center' }}>요청ID</th>
@@ -316,38 +289,24 @@ const SeedingList: FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {pagination.dataToRender.map((row) => (
+                                {rows.map((row) => (
                                     <tr key={row.id}>
                                         <td>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedIds.includes(row.id)}
-                                                onChange={() => handleSelect(row.id)}
-                                            />
+                                            <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => handleSelect(row.id)} />
                                         </td>
                                         <td className={styles.minW80Col} style={{ textAlign: 'center' }}>
                                             <div className={styles.flexCenterCol}>
                                                 <StatusBadge status={row.status} />
                                                 {row.hasStockIssue && (
                                                     <div style={{ position: 'relative', display: 'inline-block' }} className="stock-issue-wrapper">
-                                                        <span className={`badge ${styles.actionBadge}`}>
-                                                            <AlertCircle size={11} /> 검토필요
-                                                        </span>
-                                                        <div className="stock-tooltip">
-                                                            재고 부족 품목이 포함되어 있습니다.<br />
-                                                            승인 전 재고 확인이 필요합니다.
-                                                        </div>
+                                                        <span className={`badge ${styles.actionBadge}`}><AlertCircle size={11} /> 검토필요</span>
+                                                        <div className="stock-tooltip">재고 부족 품목이 포함되어 있습니다.<br />승인 전 재고 확인이 필요합니다.</div>
                                                     </div>
                                                 )}
                                             </div>
                                         </td>
-                                        <td
-                                            className={styles.idLink}
-                                            onClick={() => navigate(`/seeding/detail/${row.id}`)}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                                                {row.id}
-                                            </div>
+                                        <td className={styles.idLink} onClick={() => navigate(`/seeding/detail/${row.id}`)}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>{row.id}</div>
                                         </td>
                                         <td className={styles.nowrapCol}>{row.brand}</td>
                                         <td className={styles.nowrapCol}>{row.date}</td>
@@ -376,9 +335,9 @@ const SeedingList: FC = () => {
                                                     <Edit size={16} />
                                                 </button>
                                                 {!isRequester && (
-                                                <button className="btn btn-outline" style={{ padding: '4px 8px', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleDelete(row.id)}>
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                    <button className="btn btn-outline" style={{ padding: '4px 8px', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleDelete(row.id)}>
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 )}
                                             </div>
                                         </td>
@@ -401,15 +360,16 @@ const SeedingList: FC = () => {
                             <option value={30}>30건</option>
                             <option value={50}>50건</option>
                             <option value={100}>100건</option>
+                            <option value={300}>300건</option>
+                            <option value={500}>500건</option>
                         </select>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <button className="btn btn-outline" style={{ padding: '6px 14px' }} disabled={page === 1} onClick={() => setPage(1)}>«</button>
                         <button className="btn btn-outline" style={{ padding: '6px 14px' }} disabled={page === 1} onClick={() => setPage(p => p - 1)}>‹</button>
-                        <span style={{ padding: '6px 16px', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-main)' }}>{page} / {pagination.totalPages}</span>
-                        {/* 다음 페이지: 로컬 페이징이므로 hasNext가 확실합니다 */}
-                        <button className="btn btn-outline" style={{ padding: '6px 14px' }} disabled={!pagination.hasNext} onClick={() => setPage(p => p + 1)}>›</button>
-                        <button className="btn btn-outline" style={{ padding: '6px 14px' }} disabled={page >= pagination.totalPages} onClick={() => setPage(pagination.totalPages)}>»</button>
+                        <span style={{ padding: '6px 16px', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-main)' }}>{page} / {totalPages}</span>
+                        <button className="btn btn-outline" style={{ padding: '6px 14px' }} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>›</button>
+                        <button className="btn btn-outline" style={{ padding: '6px 14px' }} disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</button>
                     </div>
                 </div>
             </Card>

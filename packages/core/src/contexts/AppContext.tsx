@@ -139,12 +139,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setBrands(brandList);
             setDepartments(deptList);
 
-            // SeedingList 등에서 per_page를 명시적으로 넘기면 그것을 우선 사용하고,
-            // per_page가 없는 경우(InventoryCheck 등)에만 500으로 설정합니다.
             const apiParams = {
                 ...params,
-                per_page: params?.per_page ?? 500,
             };
+            if (!apiParams.per_page) apiParams.per_page = 500;
             const seedingRes: any = await seedingService.getSeedings(apiParams).catch(() => ({}));
             const rawList = Array.isArray(seedingRes) ? seedingRes : (seedingRes?.data || []);
             
@@ -311,19 +309,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const updateSeeding = async (id, updatedData) => {
+    const updateSeeding = async (id, updatedData, skipFetchData = false) => {
         try {
             const keys = Object.keys(updatedData);
             const itemId = updatedData._itemId ?? seedings.find(s => s.id === id)?._itemId;
             const dbId = updatedData._dbId ?? seedings.find(s => s.id === id)?._dbId;
-            // 상태값이나 메모(반려사유)만 업데이트하는 부분 업데이트의 경우 전용 API 호출
             const isPartialUpdate = keys.every(k => ['status', 'notes', '_itemId', '_dbId'].includes(k));
             if (isPartialUpdate && (updatedData.status !== undefined || updatedData.notes !== undefined)) {
                 await seedingService.updateSeedingStatus(dbId, updatedData.status, updatedData.notes);
             } else {
                 await seedingService.updateSeeding(itemId ?? id, updatedData);
             }
-            await fetchData();
+            if (!skipFetchData) await fetchData();
         } catch (err) {
             setError('시딩 수정 실패');
             throw err;

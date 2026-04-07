@@ -4,6 +4,7 @@ import { useAppContext } from '@core/contexts/AppContext';
 import { permissionService } from '@core/services/brandService';
 import { userService } from '@core/services/userService';
 import { ROLES } from '@core/constants/roles';
+import { usePermission } from '@core/hooks/usePermission';
 import styles from './AdminSettings.module.css';
 
 const getBrandName = (b: any) => typeof b === 'object' ? (b.name || b.brand_name || '') : (b || '');
@@ -11,6 +12,7 @@ const getBrandId = (b: any) => typeof b === 'object' ? (b.id || b.brand_id) : nu
 
 const AdminSettings: FC = () => {
     const { brands, openEditAccount, accounts, fetchData, deleteAccount, currentUser, isLoading: globalLoading } = useAppContext();
+    const { isAdmin } = usePermission();
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newUser, setNewUser] = useState({ 
@@ -21,8 +23,6 @@ const AdminSettings: FC = () => {
         role: 'requester', 
         brandIds: [] as number[] 
     });
-
-    const isAdmin = currentUser?.role === 'admin';
 
     const handleCreateAccount = async () => {
         if (!newUser.name || !newUser.username || !newUser.email || !newUser.password) {

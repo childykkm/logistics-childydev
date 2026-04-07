@@ -2,6 +2,7 @@ import React, { useState, useMemo, FC, ChangeEvent } from 'react';
 import { Truck, CheckCircle, PackageCheck, ClipboardCheck } from 'lucide-react';
 import DateFilterBar from '../../components/common/DateFilterBar';
 import { useAppContext } from '@core/contexts/AppContext';
+import { usePermission } from '@core/hooks/usePermission';
 import { STATUS_LABEL, S_APPROVED, S_ORDERED, S_SHIPPED } from '@core/constants/status';
 import { PageHeader, Card } from '../../components/common/Layout';
 import StatusBadge from '../../components/StatusBadge';
@@ -11,7 +12,7 @@ const today = new Date().toISOString().split('T')[0];
 
 const SeedingShipment: FC = () => {
     const { seedings, updateSeeding } = useAppContext();
-    const isRequester = useAppContext().currentUser?.role === 'requester';
+    const { isRequester } = usePermission();
     const [activeTab, setActiveTab] = useState<'발주대상' | '출고대상' | '완료내역'>('발주대상');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [startDate, setStartDate] = useState<string>(today);

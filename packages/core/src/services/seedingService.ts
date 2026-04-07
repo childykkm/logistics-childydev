@@ -6,8 +6,7 @@ import { AxiosResponse } from 'axios';
 export const seedingService = {
     // 시딩 목록 조회 (페이징 지원)
     getSeedings: async (filters = {}): Promise<any> => {
-        const res = await client.get('/requests.php?action=list', { params: filters });
-        return res.data || res;
+        return await client.get('/requests.php?action=list', { params: filters });
     },
 
     // 시딩 요청 상세 조회

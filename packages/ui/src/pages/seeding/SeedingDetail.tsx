@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, FC, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '@core/contexts/AppContext';
+import { usePermission } from '@core/hooks/usePermission';
 import { seedingService } from '@core/services/seedingService';
 import { S_PENDING, S_REVIEWING, STATUS_MAP, STATUS_LABEL, STATUS_COLORS } from '@core/constants/status';
 import DaumPostcode from 'react-daum-postcode';
@@ -10,7 +11,7 @@ const SeedingDetail: FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { seedings, updateSeeding, deleteSeeding, fetchData, currentUser } = useAppContext();
-    const isRequester = currentUser?.role === 'requester';
+    const { isRequester, isAdmin } = usePermission();
     const [data, setData] = useState<any>(null);
     const [isPostcodeOpen, setIsPostcodeOpen] = useState(false);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -74,6 +75,15 @@ const SeedingDetail: FC = () => {
         setData({ ...data, [e.target.name]: e.target.value });
     };
 
+    const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const raw = e.target.value.replace(/[^0-9]/g, '');
+        let formatted = raw;
+        if (raw.length <= 3) formatted = raw;
+        else if (raw.length <= 7) formatted = `${raw.slice(0, 3)}-${raw.slice(3)}`;
+        else formatted = `${raw.slice(0, 3)}-${raw.slice(3, 7)}-${raw.slice(7, 11)}`;
+        setData({ ...data, [e.target.name]: formatted });
+    };
+
     const handlePostcodeComplete = (postcodeData: any) => {
         let fullAddress = postcodeData.address;
         let extraAddress = '';
@@ -122,7 +132,7 @@ const SeedingDetail: FC = () => {
         }
     };
 
-    const isModifiable = data.status === S_PENDING || data.status === S_REVIEWING;
+    const isModifiable = data.status === S_PENDING || data.status === S_REVIEWING || isAdmin;
 
     return (
         <div>
@@ -189,7 +199,7 @@ const SeedingDetail: FC = () => {
                         </div>
                         <div className="form-group">
                             <label className="form-label">브랜드</label>
-                            <input type="text" className="form-input" name="brand" value={data.brand || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" name="brand" value={data.brand || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} onChange={handleChange} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">주문일자</label>
@@ -211,7 +221,7 @@ const SeedingDetail: FC = () => {
                         </div>
                         <div className="form-group">
                             <label className="form-label">주문자 휴대폰</label>
-                            <input type="text" className="form-input" name="orderPhone" value={data.orderPhone || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" name="orderPhone" value={data.orderPhone || ''} onChange={handlePhoneChange} maxLength={13} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">수취인명</label>
@@ -219,7 +229,7 @@ const SeedingDetail: FC = () => {
                         </div>
                         <div className="form-group">
                             <label className="form-label">수취인 휴대폰</label>
-                            <input type="text" className="form-input" name="recipientPhone" value={data.recipientPhone || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" name="recipientPhone" value={data.recipientPhone || ''} onChange={handlePhoneChange} maxLength={13} />
                         </div>
                         <div className="form-group full">
                             <label className="form-label">수취인 주소</label>
@@ -241,35 +251,35 @@ const SeedingDetail: FC = () => {
                     <div className="form-grid">
                         <div className="form-group">
                             <label className="form-label">자사상품코드</label>
-                            <input type="text" className="form-input" value={data.itemCode || ''} readOnly style={{ background: '#F3F4F6' }} />
+                            <input type="text" className="form-input" value={data.itemCode || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">상품명(쇼핑몰)</label>
-                            <input type="text" className="form-input" value={data.itemName || ''} readOnly style={{ background: '#F3F4F6' }} />
+                            <input type="text" className="form-input" value={data.itemName || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">옵션명(쇼핑몰)</label>
-                            <input type="text" className="form-input" value={data.option1 || ''} readOnly style={{ background: '#F3F4F6' }} />
+                            <input type="text" className="form-input" value={data.option1 || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">옵션명2(쇼핑몰)</label>
-                            <input type="text" className="form-input" value={data.option2 || ''} readOnly style={{ background: '#F3F4F6' }} />
+                            <input type="text" className="form-input" value={data.option2 || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">옵션명3(쇼핑몰)</label>
-                            <input type="text" className="form-input" name="option3" value={data.option3 || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" value={data.option3 || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">주문수량</label>
-                            <input type="number" className="form-input" name="qty" value={data.qty || ''} onChange={handleChange} />
+                            <input type="number" className="form-input" value={data.qty || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">상품코드(셀릭)</label>
-                            <input type="text" className="form-input" name="sellicCode" value={data.sellicCode || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" value={data.sellicCode || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">옵션코드(셀릭)</label>
-                            <input type="text" className="form-input" name="sellicOption" value={data.sellicOption || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" value={data.sellicOption || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                     </div>
                 </div>
@@ -279,19 +289,19 @@ const SeedingDetail: FC = () => {
                     <div className="form-grid">
                         <div className="form-group">
                             <label className="form-label">판매가(쇼핑몰)</label>
-                            <input type="text" className="form-input" name="price" value={data.price || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" value={data.price || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">결제금액(쇼핑몰)</label>
-                            <input type="text" className="form-input" name="paymentPrice" value={data.paymentPrice || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" value={data.paymentPrice || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">정산예정금액</label>
-                            <input type="text" className="form-input" name="expectedPrice" value={data.expectedPrice || data.expected || ''} onChange={handleChange} />
+                            <input type="text" className="form-input" value={data.expectedPrice || data.expected || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }} />
                         </div>
                         <div className="form-group full">
                             <label className="form-label">비고</label>
-                            <textarea className="form-textarea" name="memo" value={data.memo || ''} onChange={handleChange}></textarea>
+                            <textarea className="form-textarea" name="memo" value={data.memo || ''} readOnly style={{ background: '#F3F4F6', cursor: 'not-allowed' }}></textarea>
                         </div>
                     </div>
                 </div>

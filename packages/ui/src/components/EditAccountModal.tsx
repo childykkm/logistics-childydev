@@ -4,6 +4,7 @@ import { permissionService } from '@core/services/brandService';
 import { userService } from '@core/services/userService';
 import { ROLES } from '@core/constants/roles';
 import { useAppContext } from '@core/contexts/AppContext';
+import { usePermission } from '@core/hooks/usePermission';
 
 const getBrandName = (b: any) => typeof b === 'object' ? (b.name || b.brand_name || '') : (b || '');
 const getBrandId = (b: any) => typeof b === 'object' ? (b.id || b.brand_id) : null;
@@ -17,7 +18,7 @@ interface EditAccountModalProps {
 
 const EditAccountModal: FC<EditAccountModalProps> = ({ user, brands, onClose, onSaved }) => {
     const { currentUser: loggedInUser, setCurrentUser: setLoggedInUser } = useAppContext();
-    const isAdmin = loggedInUser?.role === 'admin';
+    const { isAdmin } = usePermission();
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [originalUser, setOriginalUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);

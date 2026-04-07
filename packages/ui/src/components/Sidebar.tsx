@@ -2,6 +2,7 @@ import React, { FC, useContext } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, FilePlus, PackageSearch, Users, Settings, X, Truck, Store, LogOut } from 'lucide-react';
 import { AppContext } from '@core/contexts/AppContext';
+import { usePermission } from '@core/hooks/usePermission';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -10,7 +11,7 @@ interface SidebarProps {
 
 const Sidebar: FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
   const { logout, currentUser } = useContext(AppContext);
-  const isAdmin = currentUser?.role === 'admin';
+  const { isAdmin } = usePermission();
 
   const handleLogout = () => {
     if (window.confirm('로그아웃 하시겠습니까?')) logout();
@@ -50,11 +51,13 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
             <span>시딩 발주 및 출고 관리</span>
           </NavLink>
 
-          <div style={{ padding: '16px 16px 8px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>[ 시스템 환경 설정 ]</div>
-          <NavLink to="/brands" onClick={closeSidebar} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <Store size={20} />
-            <span>브랜드 관리</span>
-          </NavLink>
+          {isAdmin && <div style={{ padding: '16px 16px 8px 16px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>[ 시스템 환경 설정 ]</div>}
+          {isAdmin && (
+            <NavLink to="/brands" onClick={closeSidebar} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <Store size={20} />
+              <span>브랜드 관리</span>
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <Users size={20} />

@@ -3,12 +3,13 @@ import { Plus, Edit, Trash2, X, Link, CheckCircle, Loader2, ShieldCheck, Store, 
 import { brandService } from '@core/services/brandService';
 import { authService } from '@core/services/authService';
 import { AppContext } from '@core/contexts/AppContext';
+import { usePermission } from '@core/hooks/usePermission';
 
 const emptyForm = { name: '', mall_id: '', description: '' };
 
 export default function BrandManagement() {
     const { brands, setBrands, fetchData, currentUser } = useContext(AppContext);
-    const isAdmin = currentUser?.role === 'admin';
+    const { isAdmin } = usePermission();
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editTarget, setEditTarget] = useState(null); // null = 신규, object = 수정
