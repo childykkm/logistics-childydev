@@ -128,7 +128,6 @@ const SeedingRequest: FC = () => {
             sellic_option_code: row.sellicOption,
             status: (typeof row.expectedStock === 'number' && row.expectedStock < 0) ? 'reviewing' : 'pending',
         }));
-
         try {
             setIsUploading(true);
             await seedingService.uploadSeeding(payload);

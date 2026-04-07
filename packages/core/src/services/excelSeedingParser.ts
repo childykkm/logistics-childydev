@@ -147,6 +147,7 @@ export async function parseSeedingExcel(file: File, selectedBrandName: string, b
                                 _option2: option2Val.toUpperCase(),
                                 _displayCode: customCode || p.product_code,
                                 _processedStock: Number(v.quantity ?? 0),
+                                _customVariantCode: v.custom_variant_code || '',
                                 product_name: p.product_name,
                                 price: p.price,
                             });
@@ -159,6 +160,7 @@ export async function parseSeedingExcel(file: File, selectedBrandName: string, b
                             _option2: '',
                             _displayCode: customCode || p.product_code,
                             _processedStock: p.quantity !== undefined ? Number(p.quantity) : null,
+                            _customVariantCode: '',
                             product_name: p.product_name,
                             price: p.price,
                         });
@@ -246,7 +248,7 @@ export async function parseSeedingExcel(file: File, selectedBrandName: string, b
                         orderNo: row['주문번호(쇼핑몰)'] || '',
                         memo: row['비고'] || '',
                         sellicCode: row['상품코드(셀릭)'] || '',
-                        sellicOption: row['옵션코드(셀릭)'] || '',
+                        sellicOption: matchedProduct?._customVariantCode || row['옵션코드(셀릭)'] || '',
                         id: Math.random().toString(36).substr(2, 9)
                     } as PreviewItem;
                 });
