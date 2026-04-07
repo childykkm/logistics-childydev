@@ -60,9 +60,8 @@ export default function Login() {
                     
                     {/* 실 데이터 연동을 위한 안내 메시지 */}
                     <div style={{ marginTop: '24px', fontSize: '0.875rem', color: 'var(--text-muted)', textAlign: 'center', backgroundColor: '#F9FAFB', padding: '12px', borderRadius: '8px' }}>
-                        <strong>[안내]</strong> 실 서버 연동 모드입니다.<br/>
-                        백엔드 API 시스템에 등록된 계정으로 로그인해주세요.<br/>
-                        (테스트 계정이 없다면 백엔드 개발자에게 문의)
+                        등록된 계정으로 로그인해주세요.<br/>
+                        계정이 없다면 관리자에게 문의해주세요.
                     </div>
                 </form>
             </div>
