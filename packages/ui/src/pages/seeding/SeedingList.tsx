@@ -33,6 +33,7 @@ const SeedingList: FC = () => {
     const [totalPages, setTotalPages] = useState<number>(1);
     const [localSearch, setLocalSearch] = useState<string>('');
     const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [reloadKey, setReloadKey] = useState<number>(0);
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedSearch(localSearch), 500);
@@ -78,7 +79,7 @@ const SeedingList: FC = () => {
         };
         load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, limit, filterBrand, filterStatus, startDate, endDate, debouncedSearch]);
+    }, [page, limit, filterBrand, filterStatus, startDate, endDate, debouncedSearch, reloadKey]);
 
     const handleSearch = () => { setPage(1); };
 
@@ -119,7 +120,7 @@ const SeedingList: FC = () => {
             const dbId = found?._dbId ? String(found._dbId) : id;
             await deleteSeeding(dbId);
             setSelectedIds(prev => prev.filter(sid => sid !== id));
-            setPage(1);
+            setReloadKey(k => k + 1);
         }
     };
 
@@ -131,7 +132,7 @@ const SeedingList: FC = () => {
                 const requestDbIds = [...new Set(deletable.map(s => s._dbId).filter((id): id is number => !!id))];
                 await Promise.all(requestDbIds.map(dbId => seedingService.deleteSeeding(String(dbId))));
                 setSelectedIds([]);
-                setPage(1);
+                setReloadKey(k => k + 1);
                 alert(`${deletable.length}건이 삭제되었습니다.`);
             } catch {
                 alert('삭제 중 오류가 발생했습니다.');
@@ -213,10 +214,13 @@ const SeedingList: FC = () => {
                     <Filter size={15} color="#9CA3AF" />
                     <select className="form-select" style={{ width: 'auto', minWidth: '140px' }} value={filterBrand} onChange={e => { setFilterBrand(e.target.value); setPage(1); }}>
                         <option value="">전체 브랜드</option>
-                        {brands.map((b, i) => {
-                            const brandName = typeof b === 'object' ? (b.name || (b as any).brand_name) : b;
-                            return <option key={i} value={brandName}>{brandName}</option>;
-                        })}
+                        {brands.length === 0
+                            ? <option disabled>할당된 브랜드 없음 (관리자에게 문의)</option>
+                            : brands.map((b, i) => {
+                                const brandName = typeof b === 'object' ? (b.name || (b as any).brand_name) : b;
+                                return <option key={i} value={brandName}>{brandName}</option>;
+                            })
+                        }
                     </select>
                     <select className="form-select" style={{ width: 'auto', minWidth: '140px' }} value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}>
                         <option value="">전체 상태</option>

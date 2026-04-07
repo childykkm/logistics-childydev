@@ -36,12 +36,16 @@ client.interceptors.request.use(
 
 client.interceptors.response.use(
     (response: AxiosResponse) => {
-        return response.data; // 여기서 이미 언랩됨
+        return response.data;
     },
     (error) => {
-        // Global error handling
+        const status = error.response?.status;
         const message = error.response?.data?.message || '알 수 없는 오류가 발생했습니다.';
         console.error('[API Error]:', message);
+        if (status === 401) {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        }
         return Promise.reject(error);
     }
 );

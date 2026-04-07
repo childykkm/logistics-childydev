@@ -12,8 +12,18 @@ import Settings from '@ui/pages/Settings';
 import BrandManagement from '@ui/pages/BrandManagement';
 import EditAccountModal from '@ui/components/EditAccountModal';
 import { AppProvider, AppContext } from '@core/contexts/AppContext';
+import { usePermission } from '@core/hooks/usePermission';
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import Login from '@ui/pages/Login';
+import Forbidden from '@ui/pages/Forbidden';
+import NotFound from '@ui/pages/NotFound';
+import { Navigate } from 'react-router-dom';
+
+// ─── Route Guard ───
+function AdminRoute({ children }) {
+  const { isAdmin } = usePermission();
+  return isAdmin ? children : <Forbidden />;
+}
 
 // ─── Error Boundary: 페이지 단위 에러 방지 ───
 class PageErrorBoundary extends Component {
@@ -129,9 +139,10 @@ function RoutesWithBoundary() {
         { path: '/seeding/detail/:id', el: <SeedingDetail /> },
         { path: '/seeding/inventory', el: <InventoryCheck /> },
         { path: '/seeding/shipment', el: <SeedingShipment /> },
-        { path: '/brands', el: <BrandManagement /> },
-        { path: '/admin', el: <AdminSettings /> },
+        { path: '/brands', el: <AdminRoute><BrandManagement /></AdminRoute> },
+        { path: '/admin', el: <AdminRoute><AdminSettings /></AdminRoute> },
         { path: '/settings', el: <Settings /> },
+        { path: '*', el: <NotFound /> },
       ].map(({ path, el }) => (
         <Route
           key={path}
