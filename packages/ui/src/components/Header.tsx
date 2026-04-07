@@ -3,6 +3,7 @@ import { Bell, Menu, X, User } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAppContext } from '@core/contexts/AppContext';
 import { userService } from '@core/services/userService';
+import { ROLES } from '@core/constants/roles';
 
 interface HeaderProps {
     toggleSidebar: () => void;
@@ -70,7 +71,7 @@ const Header: FC<HeaderProps> = ({ toggleSidebar }) => {
                         onClick={handleMyPageOpen}
                     >
                         <span style={{ fontWeight: 600 }}>{currentUser?.name || '로그인 필요'}</span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{currentUser?.role || '-'}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{ROLES.find(r => r.key === currentUser?.role)?.label || currentUser?.role || '-'}</span>
                     </div>
                 </div>
 

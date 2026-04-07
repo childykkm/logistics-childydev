@@ -24,6 +24,7 @@ const SeedingRequest: FC = () => {
 
     const [excelPreview, setExcelPreview] = useState<any[] | null>(null);
     const [excelFile, setExcelFile] = useState<File | null>(null);
+    const [selectedPreviewIds, setSelectedPreviewIds] = useState<number[]>([]);
 
     // Methods
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => 
@@ -56,6 +57,23 @@ const SeedingRequest: FC = () => {
     const removeExcelRow = (idx: number) => {
         if (excelPreview && window.confirm('해당 행을 원장에서 제외하시겠습니까?')) {
             setExcelPreview(excelPreview.filter((_, i) => i !== idx));
+            setSelectedPreviewIds(prev => prev.filter(i => i !== idx).map(i => i > idx ? i - 1 : i));
+        }
+    };
+
+    const handlePreviewSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSelectedPreviewIds(e.target.checked ? (excelPreview || []).map((_, i) => i) : []);
+    };
+
+    const handlePreviewSelect = (idx: number) => {
+        setSelectedPreviewIds(prev => prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]);
+    };
+
+    const handleBulkRemove = () => {
+        if (selectedPreviewIds.length === 0) return;
+        if (window.confirm(`선택한 ${selectedPreviewIds.length}건을 제외하시겠습니까?`)) {
+            setExcelPreview((excelPreview || []).filter((_, i) => !selectedPreviewIds.includes(i)));
+            setSelectedPreviewIds([]);
         }
     };
 
@@ -220,7 +238,12 @@ const SeedingRequest: FC = () => {
                         title={`업로드 데이터 미리보기 (${excelPreview.length}건)`}
                         headerAction={
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                <button className="btn btn-outline" onClick={() => { setExcelPreview(null); setExcelFile(null); }}>취소</button>
+                                <button className="btn btn-outline" onClick={() => { setExcelPreview(null); setExcelFile(null); setSelectedPreviewIds([]); }}>취소</button>
+                                {selectedPreviewIds.length > 0 && (
+                                    <button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={handleBulkRemove}>
+                                        <Trash2 size={16} /> 선택 {selectedPreviewIds.length}건 제외
+                                    </button>
+                                )}
                                 <button className="btn btn-primary" onClick={handleFileUpload} disabled={isUploading}>
                                     {isUploading ? '등록 처리 중...' : '최종 등록 완료'}
                                 </button>
@@ -231,6 +254,9 @@ const SeedingRequest: FC = () => {
                             <table className="table">
                                 <thead>
                                     <tr>
+                                        <th style={{ width: '40px', textAlign: 'center' }}>
+                                            <input type="checkbox" onChange={handlePreviewSelectAll} checked={excelPreview.length > 0 && selectedPreviewIds.length === excelPreview.length} />
+                                        </th>
                                         <th style={{ width: '60px', textAlign: 'center' }}>상태</th>
                                         <th style={{ width: '100px', textAlign: 'center' }}>주문일자</th>
                                         <th style={{ width: '180px', textAlign: 'left' }}>상품명</th>
@@ -252,6 +278,9 @@ const SeedingRequest: FC = () => {
                                                 background: isShortage ? '#FEF2F2' : 'transparent',
                                                 verticalAlign: 'middle'
                                             }}>
+                                                <td style={{ textAlign: 'center' }}>
+                                                    <input type="checkbox" checked={selectedPreviewIds.includes(idx)} onChange={() => handlePreviewSelect(idx)} />
+                                                </td>
                                                 <td style={{ textAlign: 'center' }}>
                                                     {isUnlinked ? (
                                                         <span title="미연동"><AlertCircle color="#94A3B8" size={20} /></span>
