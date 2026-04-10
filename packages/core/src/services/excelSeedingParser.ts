@@ -29,6 +29,7 @@ export interface PreviewItem {
     memo: string;
     sellicCode: string;
     sellicOption: string;
+    customVariantCode: string;
     id: string;
 }
 
@@ -248,7 +249,8 @@ export async function parseSeedingExcel(file: File, selectedBrandName: string, b
                         orderNo: row['주문번호(쇼핑몰)'] || '',
                         memo: row['비고'] || '',
                         sellicCode: row['상품코드(셀릭)'] || '',
-                        sellicOption: matchedProduct?._customVariantCode || row['옵션코드(셀릭)'] || '',
+                        sellicOption: row['옵션코드(셀릭)'] || '',
+                        customVariantCode: matchedProduct?._customVariantCode || '',
                         id: Math.random().toString(36).substr(2, 9)
                     } as PreviewItem;
                 });

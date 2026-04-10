@@ -126,6 +126,7 @@ const SeedingRequest: FC = () => {
             notes: row.memo || formData.memo || '',
             sellic_product_code: row.sellicCode,
             sellic_option_code: row.sellicOption,
+            custom_variant_code: row.customVariantCode,
             status: (typeof row.expectedStock === 'number' && row.expectedStock < 0) ? 'reviewing' : 'pending',
         }));
         try {
