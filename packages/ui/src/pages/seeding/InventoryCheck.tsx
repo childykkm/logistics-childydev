@@ -1,5 +1,6 @@
 import React, { useState, useMemo, FC } from 'react';
 import { PackageSearch, CheckCircle2, XCircle, ListChecks, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import DateFilterBar from '../../components/common/DateFilterBar';
 import { useAppContext } from '@core/contexts/AppContext';
 import { usePermission } from '@core/hooks/usePermission';
@@ -13,13 +14,14 @@ const today = new Date().toISOString().split('T')[0];
 const InventoryCheck: FC = () => {
     const { seedings, fetchData, updateSeeding, approveInventory, rejectInventory } = useAppContext();
     const { isRequester } = usePermission();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'대기' | '완료'>('대기');
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
 
-    const [startDate, setStartDate] = useState<string>(today);
-    const [endDate, setEndDate] = useState<string>(today);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
 
     React.useEffect(() => {
         fetchData();
@@ -215,7 +217,7 @@ const InventoryCheck: FC = () => {
                                             <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => handleSelect(row.id)} />
                                         </td>
                                     )}
-                                    <td className={styles.idColInfo}>{row.id}</td>
+                                    <td className={styles.idColInfo} style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate(`/seeding/detail/${row.id}`)}>{row.id}</td>
                                     <td className={styles.nowrapCol}>{row.brand}</td>
                                     <td className={styles.nowrapCol}>{row.date}</td>
                                     <td className={styles.nowrapCol}>{row.orderName}</td>

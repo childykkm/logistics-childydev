@@ -82,6 +82,29 @@ export async function parseSeedingExcel(file: File, selectedBrandName: string, b
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
                 const rawData = XLSX.utils.sheet_to_json<ExcelRow>(ws, { raw: false });
+
+                const REQUIRED_COLUMNS = [
+                    '주문일자', '자사상품코드', '옵션명(쇼핑몰)', '옵션명2(쇼핑몰)',
+                    '주문수량', '주문자명', '주문자 휴대폰', '수취인명',
+                    '수취인 우편번호', '수취인 주소', '수취인 휴대폰',
+                    '주문번호(쇼핑몰)', '판매가(쇼핑몰)', '결제금액(쇼핑몰)',
+                    '상품명(쇼핑몰)', '비고', '정산예정금액',
+                    '상품코드(셀릭)', '옵션코드(셀릭)', '옵션명3(쇼핑몰)',
+                ];
+                const tempRef = ws['!ref'];
+                const tempRange = tempRef ? XLSX.utils.decode_range(tempRef) : null;
+                const excelHeaders: string[] = [];
+                if (tempRange) {
+                    for (let C = tempRange.s.c; C <= tempRange.e.c; C++) {
+                        const cell = ws[XLSX.utils.encode_cell({ r: tempRange.s.r, c: C })];
+                        if (cell && cell.v != null) excelHeaders.push(String(cell.v).trim());
+                    }
+                }
+                const missingColumns = REQUIRED_COLUMNS.filter(col => !excelHeaders.includes(col));
+                if (missingColumns.length > 0) {
+                    throw new Error(`엑셀 양식이 올바르지 않습니다.\n\n누락된 컬럼:\n${missingColumns.join(', ')}`);
+                }
+
                 const ref = ws['!ref'];
                 const range = ref ? XLSX.utils.decode_range(ref) : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
                 
@@ -256,9 +279,9 @@ export async function parseSeedingExcel(file: File, selectedBrandName: string, b
                 });
 
                 resolve(previewItems);
-            } catch (error) {
+            } catch (error: any) {
                 console.error(error);
-                reject(new Error('엑셀 파싱 및 처리 중 오류가 발생했습니다.'));
+                reject(error instanceof Error ? error : new Error('엑셀 파싱 및 처리 중 오류가 발생했습니다.'));
             }
         };
 

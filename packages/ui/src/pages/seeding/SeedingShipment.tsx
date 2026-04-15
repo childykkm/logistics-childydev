@@ -1,5 +1,6 @@
 import React, { useState, useMemo, FC, ChangeEvent } from 'react';
 import { Truck, CheckCircle, PackageCheck, ClipboardCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import DateFilterBar from '../../components/common/DateFilterBar';
 import { useAppContext } from '@core/contexts/AppContext';
 import { usePermission } from '@core/hooks/usePermission';
@@ -13,10 +14,11 @@ const today = new Date().toISOString().split('T')[0];
 const SeedingShipment: FC = () => {
     const { seedings, updateSeeding } = useAppContext();
     const { isRequester } = usePermission();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'발주대상' | '출고대상' | '완료내역'>('발주대상');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [startDate, setStartDate] = useState<string>(today);
-    const [endDate, setEndDate] = useState<string>(today);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
 
     const targetList = useMemo(() => {
         return seedings.filter(s => {
@@ -74,11 +76,16 @@ const SeedingShipment: FC = () => {
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <div className="stat-item">
                         <div className="stat-label">발주대기</div>
-                        <div className="stat-value">{seedings.filter(s => s.status === S_APPROVED).length}</div>
+                        <div className="stat-value">{targetList.length}</div>
                     </div>
                     <div className="stat-item">
                         <div className="stat-label">출고대기</div>
-                        <div className="stat-value">{seedings.filter(s => s.status === S_ORDERED).length}</div>
+                        <div className="stat-value">{seedings.filter(s => {
+                            if (s.status !== S_ORDERED) return false;
+                            if (startDate && s.date < startDate) return false;
+                            if (endDate && s.date > endDate) return false;
+                            return true;
+                        }).length}</div>
                     </div>
                 </div>
             </PageHeader>
@@ -95,19 +102,29 @@ const SeedingShipment: FC = () => {
             <div className={styles.tabContainerScrollX}>
                 <button
                     className={`btn ${activeTab === '발주대상' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => { setActiveTab('발주대상'); setSelectedIds([]); setStartDate(today); setEndDate(today); }}
+                    onClick={() => { setActiveTab('발주대상'); setSelectedIds([]); }}
                 >
-                    <ClipboardCheck size={18} /> 발주 대상 ({seedings.filter(s => s.status === S_APPROVED).length})
+                    <ClipboardCheck size={18} /> 발주 대상 ({seedings.filter(s => {
+                        if (s.status !== S_APPROVED) return false;
+                        if (startDate && s.date < startDate) return false;
+                        if (endDate && s.date > endDate) return false;
+                        return true;
+                    }).length})
                 </button>
                 <button
                     className={`btn ${activeTab === '출고대상' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => { setActiveTab('출고대상'); setSelectedIds([]); setStartDate(today); setEndDate(today); }}
+                    onClick={() => { setActiveTab('출고대상'); setSelectedIds([]); }}
                 >
-                    <Truck size={18} /> 출고 대상 ({seedings.filter(s => s.status === S_ORDERED).length})
+                    <Truck size={18} /> 출고 대상 ({seedings.filter(s => {
+                        if (s.status !== S_ORDERED) return false;
+                        if (startDate && s.date < startDate) return false;
+                        if (endDate && s.date > endDate) return false;
+                        return true;
+                    }).length})
                 </button>
                 <button
                     className={`btn ${activeTab === '완료내역' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => { setActiveTab('완료내역'); setSelectedIds([]); setStartDate(today); setEndDate(today); }}
+                    onClick={() => { setActiveTab('완료내역'); setSelectedIds([]); }}
                 >
                     <CheckCircle size={18} /> 최근 완료 내역
                 </button>
@@ -134,9 +151,11 @@ const SeedingShipment: FC = () => {
                     <table className={`table ${styles.tableMinWidth1000}`}>
                         <thead>
                             <tr className={styles.nowrapCol}>
-                                <th style={{ width: '50px' }}>
-                                    {!isRequester && <input type="checkbox" onChange={handleSelectAll} checked={targetList.length > 0 && selectedIds.length === targetList.length} />}
-                                </th>
+                                {activeTab !== '완료내역' && (
+                                    <th style={{ width: '50px' }}>
+                                        {!isRequester && <input type="checkbox" onChange={handleSelectAll} checked={targetList.length > 0 && selectedIds.length === targetList.length} />}
+                                    </th>
+                                )}
                                 <th style={{ width: '150px' }}>요청ID</th>
                                 <th style={{ width: '100px' }}>브랜드</th>
                                 <th style={{ width: '100px' }}>수취인</th>
@@ -152,10 +171,12 @@ const SeedingShipment: FC = () => {
                         <tbody>
                             {targetList.map((row) => (
                                 <tr key={row.id}>
-                                    <td>
-                                        {!isRequester && <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => handleSelect(row.id)} />}
-                                    </td>
-                                    <td className={styles.idColStrongInfo}>{row.id}</td>
+                                    {activeTab !== '완료내역' && (
+                                        <td>
+                                            {!isRequester && <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => handleSelect(row.id)} />}
+                                        </td>
+                                    )}
+                                    <td className={styles.idColStrongInfo} style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate(`/seeding/detail/${row.id}`)}>{row.id}</td>
                                     <td className={styles.nowrapCol}>{row.brand}</td>
                                     <td className={styles.nowrapCol}>{row.recipientName}</td>
                                     <td className={styles.ellipsisCol250}>{row.itemName}</td>
@@ -171,7 +192,7 @@ const SeedingShipment: FC = () => {
                             ))}
                             {targetList.length === 0 && (
                                 <tr>
-                                    <td colSpan={11} className={styles.emptyStateTableLarge}>
+                                    <td colSpan={activeTab === '완료내역' ? 10 : 11} className={styles.emptyStateTableLarge}>
                                         <PackageCheck size={48} className={styles.emptyStateIconLight} />
                                         <p>해당 상태의 시딩 요청 건이 없습니다.</p>
                                     </td>

@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect, useCallback, FC } from 'react';
-import { Filter, Download, Trash2, Edit, BarChart2, PieChart as PieChartIcon, AlertCircle, Search, RotateCcw } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, FC } from 'react';
+import { Filter, Download, Trash2, Edit, BarChart2, PieChart as PieChartIcon, AlertCircle, Search, RotateCcw, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '@core/contexts/AppContext';
 import { usePermission } from '@core/hooks/usePermission';
 import { seedingService } from '@core/services/seedingService';
 import { exportSeedingToExcel } from '@core/services/excelSeedingExport';
-import { STATUS_COLORS, STATUS_LABEL, STATUS_LIST, STATUS_MAP_TO_ENG, STATUS_MAP } from '@core/constants/status';
+import { STATUS_COLORS, STATUS_LIST, STATUS_MAP_TO_ENG, STATUS_MAP } from '@core/constants/status';
 import { PageHeader, Card } from '../../components/common/Layout';
 import StatusBadge from '../../components/StatusBadge';
 import { Seeding } from '@core/types/seeding';
@@ -23,7 +23,7 @@ const SeedingList: FC = () => {
 
     const [rows, setRows] = useState<Seeding[]>([]);
     const [filterBrand, setFilterBrand] = useState<string>('');
-    const [filterStatus, setFilterStatus] = useState<string>('');
+    const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -34,6 +34,16 @@ const SeedingList: FC = () => {
     const [localSearch, setLocalSearch] = useState<string>('');
     const [debouncedSearch, setDebouncedSearch] = useState<string>('');
     const [reloadKey, setReloadKey] = useState<number>(0);
+    const [statusDropOpen, setStatusDropOpen] = useState(false);
+    const statusDropRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (statusDropRef.current && !statusDropRef.current.contains(e.target as Node)) setStatusDropOpen(false);
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedSearch(localSearch), 500);
@@ -49,7 +59,9 @@ const SeedingList: FC = () => {
             const brandId = (matchedBrand as any)?.id || (matchedBrand as any)?.brand_id;
             const params: any = { page, per_page: limit };
             if (brandId) params.brand_id = brandId;
-            if (filterStatus) params.status = STATUS_MAP_TO_ENG[filterStatus] ?? filterStatus;
+            if (filterStatuses.length > 0) {
+                params.status = filterStatuses.map(s => STATUS_MAP_TO_ENG[s] ?? s).join(',');
+            }
             if (startDate) params.start_date = startDate;
             if (endDate) params.end_date = endDate;
             if (debouncedSearch) params.keyword = debouncedSearch;
@@ -79,7 +91,7 @@ const SeedingList: FC = () => {
         };
         load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, limit, filterBrand, filterStatus, startDate, endDate, debouncedSearch, reloadKey]);
+    }, [page, limit, filterBrand, filterStatuses, startDate, endDate, debouncedSearch, reloadKey]);
 
     const handleSearch = () => { setPage(1); };
 
@@ -222,10 +234,32 @@ const SeedingList: FC = () => {
                             })
                         }
                     </select>
-                    <select className="form-select" style={{ width: 'auto', minWidth: '140px' }} value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}>
-                        <option value="">전체 상태</option>
-                        {STATUS_LIST.map((s, i) => <option key={i} value={s}>{STATUS_LABEL[s] ?? s}</option>)}
-                    </select>
+                    <div ref={statusDropRef} style={{ position: 'relative' }}>
+                        <button
+                            className={styles.statusTrigger}
+                            onClick={() => setStatusDropOpen(v => !v)}
+                        >
+                            {filterStatuses.length === 0 ? '전체 상태' : `${filterStatuses.length}개 선택`}
+                            <ChevronDown size={14} />
+                        </button>
+                        {statusDropOpen && (
+                            <div className={styles.statusDropdown}>
+                                {STATUS_LIST.map((s, i) => (
+                                    <label key={i} className={styles.statusDropdownItem}>
+                                        <input
+                                            type="checkbox"
+                                            checked={filterStatuses.includes(s)}
+                                            onChange={() => {
+                                                setFilterStatuses(prev => prev.includes(s) ? prev.filter(v => v !== s) : [...prev, s]);
+                                                setPage(1);
+                                            }}
+                                        />
+                                        <StatusBadge status={s} />
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <div className={styles.filterRow}>
                         <input type="date" className={`form-input ${styles.dateInput}`} value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }} />
                         <span style={{ color: '#9CA3AF' }}>~</span>
@@ -243,16 +277,12 @@ const SeedingList: FC = () => {
                         />
                     </div>
                     <button
-                        className="btn btn-outline"
-                        style={{
-                            padding: '8px 14px',
-                            fontSize: '0.875rem',
-                            ...(filterBrand || filterStatus || startDate || endDate || localSearch
-                                ? { color: 'var(--primary)', borderColor: 'var(--primary)', background: '#EEF2FF' }
-                                : { color: 'var(--text-muted)', borderColor: 'var(--border-color)' }
-                            )
-                        }}
-                        onClick={() => { setFilterBrand(''); setFilterStatus(''); setStartDate(''); setEndDate(''); setLocalSearch(''); setPage(1); }}
+                        className={`btn btn-outline ${styles.filterResetBtn}`}
+                        style={filterBrand || filterStatuses.length > 0 || startDate || endDate || localSearch
+                            ? { color: 'var(--primary)', borderColor: 'var(--primary)', background: '#EEF2FF' }
+                            : { color: 'var(--text-muted)', borderColor: 'var(--border-color)' }
+                        }
+                        onClick={() => { setFilterBrand(''); setFilterStatuses([]); setStartDate(''); setEndDate(''); setLocalSearch(''); setPage(1); }}
                     >
                         <RotateCcw size={14} /> 필터 초기화
                     </button>
