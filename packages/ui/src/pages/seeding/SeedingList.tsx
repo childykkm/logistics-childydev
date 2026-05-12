@@ -396,6 +396,8 @@ const SeedingList: FC = () => {
                             <option value={100}>100건</option>
                             <option value={300}>300건</option>
                             <option value={500}>500건</option>
+                            <option value={1000}>1000건</option>
+                            <option value={2000}>2000건</option>
                         </select>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
